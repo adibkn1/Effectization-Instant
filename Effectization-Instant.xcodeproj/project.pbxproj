@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B21238B22CAC18C40087BCBE /* ARClip1.app in Embed App Clips */ = {isa = PBXBuildFile; fileRef = B212388D2CAC18C40087BCBE /* ARClip1.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		B212386D2CAC18AC0087BCBE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,17 +25,83 @@
 			remoteGlobalIDString = B21238592CAC18AB0087BCBE;
 			remoteInfo = "Effectization-Instant";
 		};
+		B212389F2CAC18C40087BCBE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B21238522CAC18AB0087BCBE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B212388C2CAC18C40087BCBE;
+			remoteInfo = ARClip1;
+		};
+		B21238A92CAC18C40087BCBE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B21238522CAC18AB0087BCBE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B212388C2CAC18C40087BCBE;
+			remoteInfo = ARClip1;
+		};
+		B21238B02CAC18C40087BCBE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B21238522CAC18AB0087BCBE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B212388C2CAC18C40087BCBE;
+			remoteInfo = ARClip1;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B21238B72CAC18C40087BCBE /* Embed App Clips */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/AppClips";
+			dstSubfolderSpec = 16;
+			files = (
+				B21238B22CAC18C40087BCBE /* ARClip1.app in Embed App Clips */,
+			);
+			name = "Embed App Clips";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		B212385A2CAC18AB0087BCBE /* Effectization-Instant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Effectization-Instant.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B212386C2CAC18AC0087BCBE /* Effectization-InstantTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Effectization-InstantTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B21238762CAC18AC0087BCBE /* Effectization-InstantUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Effectization-InstantUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B212388D2CAC18C40087BCBE /* ARClip1.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ARClip1.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B212389E2CAC18C40087BCBE /* ARClip1Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ARClip1Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B21238A82CAC18C40087BCBE /* ARClip1UITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ARClip1UITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		B21238B32CAC18C40087BCBE /* Exceptions for "ARClip1" folder in "ARClip1" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = B212388C2CAC18C40087BCBE /* ARClip1 */;
+		};
+		B21238C32CAC1E060087BCBE /* Exceptions for "Effectization-Instant" folder in "ARClip1" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				art.scnassets,
+			);
+			target = B212388C2CAC18C40087BCBE /* ARClip1 */;
+		};
+		B28E93A92CAECE5F0017E067 /* Exceptions for "Effectization-Instant" folder in "Effectization-Instant" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = B21238592CAC18AB0087BCBE /* Effectization-Instant */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		B212385C2CAC18AB0087BCBE /* Effectization-Instant */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B28E93A92CAECE5F0017E067 /* Exceptions for "Effectization-Instant" folder in "Effectization-Instant" target */,
+				B21238C32CAC1E060087BCBE /* Exceptions for "Effectization-Instant" folder in "ARClip1" target */,
+			);
 			path = "Effectization-Instant";
 			sourceTree = "<group>";
 		};
@@ -43,6 +113,24 @@
 		B21238792CAC18AC0087BCBE /* Effectization-InstantUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Effectization-InstantUITests";
+			sourceTree = "<group>";
+		};
+		B212388E2CAC18C40087BCBE /* ARClip1 */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B21238B32CAC18C40087BCBE /* Exceptions for "ARClip1" folder in "ARClip1" target */,
+			);
+			path = ARClip1;
+			sourceTree = "<group>";
+		};
+		B21238A12CAC18C40087BCBE /* ARClip1Tests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ARClip1Tests;
+			sourceTree = "<group>";
+		};
+		B21238AB2CAC18C40087BCBE /* ARClip1UITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ARClip1UITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -69,6 +157,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B212388A2CAC18C40087BCBE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B212389B2CAC18C40087BCBE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B21238A52CAC18C40087BCBE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -78,6 +187,9 @@
 				B212385C2CAC18AB0087BCBE /* Effectization-Instant */,
 				B212386F2CAC18AC0087BCBE /* Effectization-InstantTests */,
 				B21238792CAC18AC0087BCBE /* Effectization-InstantUITests */,
+				B212388E2CAC18C40087BCBE /* ARClip1 */,
+				B21238A12CAC18C40087BCBE /* ARClip1Tests */,
+				B21238AB2CAC18C40087BCBE /* ARClip1UITests */,
 				B212385B2CAC18AB0087BCBE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,6 +200,9 @@
 				B212385A2CAC18AB0087BCBE /* Effectization-Instant.app */,
 				B212386C2CAC18AC0087BCBE /* Effectization-InstantTests.xctest */,
 				B21238762CAC18AC0087BCBE /* Effectization-InstantUITests.xctest */,
+				B212388D2CAC18C40087BCBE /* ARClip1.app */,
+				B212389E2CAC18C40087BCBE /* ARClip1Tests.xctest */,
+				B21238A82CAC18C40087BCBE /* ARClip1UITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -102,10 +217,12 @@
 				B21238562CAC18AB0087BCBE /* Sources */,
 				B21238572CAC18AB0087BCBE /* Frameworks */,
 				B21238582CAC18AB0087BCBE /* Resources */,
+				B21238B72CAC18C40087BCBE /* Embed App Clips */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				B21238B12CAC18C40087BCBE /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				B212385C2CAC18AB0087BCBE /* Effectization-Instant */,
@@ -163,6 +280,74 @@
 			productReference = B21238762CAC18AC0087BCBE /* Effectization-InstantUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		B212388C2CAC18C40087BCBE /* ARClip1 */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B21238B42CAC18C40087BCBE /* Build configuration list for PBXNativeTarget "ARClip1" */;
+			buildPhases = (
+				B21238892CAC18C40087BCBE /* Sources */,
+				B212388A2CAC18C40087BCBE /* Frameworks */,
+				B212388B2CAC18C40087BCBE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B212388E2CAC18C40087BCBE /* ARClip1 */,
+			);
+			name = ARClip1;
+			packageProductDependencies = (
+			);
+			productName = ARClip1;
+			productReference = B212388D2CAC18C40087BCBE /* ARClip1.app */;
+			productType = "com.apple.product-type.application.on-demand-install-capable";
+		};
+		B212389D2CAC18C40087BCBE /* ARClip1Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B21238B82CAC18C40087BCBE /* Build configuration list for PBXNativeTarget "ARClip1Tests" */;
+			buildPhases = (
+				B212389A2CAC18C40087BCBE /* Sources */,
+				B212389B2CAC18C40087BCBE /* Frameworks */,
+				B212389C2CAC18C40087BCBE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B21238A02CAC18C40087BCBE /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B21238A12CAC18C40087BCBE /* ARClip1Tests */,
+			);
+			name = ARClip1Tests;
+			packageProductDependencies = (
+			);
+			productName = ARClip1Tests;
+			productReference = B212389E2CAC18C40087BCBE /* ARClip1Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		B21238A72CAC18C40087BCBE /* ARClip1UITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B21238BB2CAC18C40087BCBE /* Build configuration list for PBXNativeTarget "ARClip1UITests" */;
+			buildPhases = (
+				B21238A42CAC18C40087BCBE /* Sources */,
+				B21238A52CAC18C40087BCBE /* Frameworks */,
+				B21238A62CAC18C40087BCBE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B21238AA2CAC18C40087BCBE /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B21238AB2CAC18C40087BCBE /* ARClip1UITests */,
+			);
+			name = ARClip1UITests;
+			packageProductDependencies = (
+			);
+			productName = ARClip1UITests;
+			productReference = B21238A82CAC18C40087BCBE /* ARClip1UITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -184,6 +369,17 @@
 						CreatedOnToolsVersion = 16.0;
 						TestTargetID = B21238592CAC18AB0087BCBE;
 					};
+					B212388C2CAC18C40087BCBE = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					B212389D2CAC18C40087BCBE = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = B212388C2CAC18C40087BCBE;
+					};
+					B21238A72CAC18C40087BCBE = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = B212388C2CAC18C40087BCBE;
+					};
 				};
 			};
 			buildConfigurationList = B21238552CAC18AB0087BCBE /* Build configuration list for PBXProject "Effectization-Instant" */;
@@ -203,6 +399,9 @@
 				B21238592CAC18AB0087BCBE /* Effectization-Instant */,
 				B212386B2CAC18AC0087BCBE /* Effectization-InstantTests */,
 				B21238752CAC18AC0087BCBE /* Effectization-InstantUITests */,
+				B212388C2CAC18C40087BCBE /* ARClip1 */,
+				B212389D2CAC18C40087BCBE /* ARClip1Tests */,
+				B21238A72CAC18C40087BCBE /* ARClip1UITests */,
 			);
 		};
 /* End PBXProject section */
@@ -223,6 +422,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		B21238742CAC18AC0087BCBE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B212388B2CAC18C40087BCBE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B212389C2CAC18C40087BCBE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B21238A62CAC18C40087BCBE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -253,6 +473,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B21238892CAC18C40087BCBE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B212389A2CAC18C40087BCBE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B21238A42CAC18C40087BCBE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -265,6 +506,21 @@
 			isa = PBXTargetDependency;
 			target = B21238592CAC18AB0087BCBE /* Effectization-Instant */;
 			targetProxy = B21238772CAC18AC0087BCBE /* PBXContainerItemProxy */;
+		};
+		B21238A02CAC18C40087BCBE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B212388C2CAC18C40087BCBE /* ARClip1 */;
+			targetProxy = B212389F2CAC18C40087BCBE /* PBXContainerItemProxy */;
+		};
+		B21238AA2CAC18C40087BCBE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B212388C2CAC18C40087BCBE /* ARClip1 */;
+			targetProxy = B21238A92CAC18C40087BCBE /* PBXContainerItemProxy */;
+		};
+		B21238B12CAC18C40087BCBE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B212388C2CAC18C40087BCBE /* ARClip1 */;
+			targetProxy = B21238B02CAC18C40087BCBE /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -393,17 +649,23 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = "Effectization-Instant/Effectization-Instant.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = C7XA5GZG35;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "";
+				INFOPLIST_FILE = "Effectization-Instant/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Adagxr Print AR";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				INFOPLIST_KEY_NSCameraUsageDescription = "We need camera access to run AR features";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arkit;
 				INFOPLIST_KEY_UIStatusBarHidden = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -422,17 +684,23 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = "Effectization-Instant/Effectization-Instant.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = C7XA5GZG35;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "";
+				INFOPLIST_FILE = "Effectization-Instant/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Adagxr Print AR";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				INFOPLIST_KEY_NSCameraUsageDescription = "We need camera access to run AR features";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arkit;
 				INFOPLIST_KEY_UIStatusBarHidden = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -518,6 +786,148 @@
 			};
 			name = Release;
 		};
+		B21238B52CAC18C40087BCBE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ARClip1/ARClip1.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"ARClip1/Preview Content\"";
+				DEVELOPMENT_TEAM = C7XA5GZG35;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ARClip1/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Effectization-Instant";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				INFOPLIST_KEY_NSCameraUsageDescription = "This App Clip requires access to the camera to provide AR functionality.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arkit;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Effectization-Studio.Effectization-Instant.Clip";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B21238B62CAC18C40087BCBE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ARClip1/ARClip1.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"ARClip1/Preview Content\"";
+				DEVELOPMENT_TEAM = C7XA5GZG35;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ARClip1/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Effectization-Instant";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				INFOPLIST_KEY_NSCameraUsageDescription = "This App Clip requires access to the camera to provide AR functionality.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arkit;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Effectization-Studio.Effectization-Instant.Clip";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		B21238B92CAC18C40087BCBE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = C7XA5GZG35;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Effectization-Studio.Effectization-Instant.ARClip1Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ARClip1.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ARClip1";
+			};
+			name = Debug;
+		};
+		B21238BA2CAC18C40087BCBE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = C7XA5GZG35;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Effectization-Studio.Effectization-Instant.ARClip1Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ARClip1.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ARClip1";
+			};
+			name = Release;
+		};
+		B21238BC2CAC18C40087BCBE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = C7XA5GZG35;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Effectization-Studio.Effectization-Instant.ARClip1UITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = ARClip1;
+			};
+			name = Debug;
+		};
+		B21238BD2CAC18C40087BCBE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = C7XA5GZG35;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Effectization-Studio.Effectization-Instant.ARClip1UITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = ARClip1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -553,6 +963,33 @@
 			buildConfigurations = (
 				B21238872CAC18AC0087BCBE /* Debug */,
 				B21238882CAC18AC0087BCBE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B21238B42CAC18C40087BCBE /* Build configuration list for PBXNativeTarget "ARClip1" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B21238B52CAC18C40087BCBE /* Debug */,
+				B21238B62CAC18C40087BCBE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B21238B82CAC18C40087BCBE /* Build configuration list for PBXNativeTarget "ARClip1Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B21238B92CAC18C40087BCBE /* Debug */,
+				B21238BA2CAC18C40087BCBE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B21238BB2CAC18C40087BCBE /* Build configuration list for PBXNativeTarget "ARClip1UITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B21238BC2CAC18C40087BCBE /* Debug */,
+				B21238BD2CAC18C40087BCBE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
