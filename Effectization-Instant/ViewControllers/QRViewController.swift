@@ -1,7 +1,14 @@
+//
+//  QRViewController.swift
+//  QR Scanner
+//
+//  Created by Swarup Panda on 04/10/24.
+//
+
 import UIKit
 import AVFoundation
 
-class QRScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
+class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
 
     var captureSession: AVCaptureSession!
     var previewLayer: AVCaptureVideoPreviewLayer!
@@ -107,7 +114,6 @@ class QRScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsD
             UIView.animate(withDuration: 1, delay: 0, options: [.curveEaseInOut, .allowUserInteraction], animations: {
                 self.scannerFrame.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
             }, completion: { _ in
-                print("Animation loop completed, restarting...")
                 self.startScannerAnimation()  // Recursive call for continuous animation
             })
         })
