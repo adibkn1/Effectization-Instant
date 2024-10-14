@@ -6,7 +6,8 @@
 //
 
 import UIKit
-import SwiftUI
+//import SwiftUI
+
 class MainTabBarController: UITabBarController {
     
     private let customTabBar = CustomTabBar()
