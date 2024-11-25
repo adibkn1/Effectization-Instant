@@ -13,14 +13,19 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
     var captureSession: AVCaptureSession!
     var previewLayer: AVCaptureVideoPreviewLayer!
     var scannerFrame: UIView!
+    
+    var topLabel = UILabel()
+    var bottomLabel = UILabel()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        // Ensure tab bar is not hidden when the scanner is active
+        
+        upperLabel()
+        lowerLabel()
+        addCloseButton()
+        
         self.hidesBottomBarWhenPushed = false
 
-        // Set up the QR code scanner session
         captureSession = AVCaptureSession()
 
         guard let videoCaptureDevice = AVCaptureDevice.default(for: .video) else {
@@ -56,39 +61,42 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
             return
         }
 
-        // Set up the preview layer to show what the camera sees
         previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
         previewLayer.frame = view.layer.bounds
         previewLayer.videoGravity = .resizeAspectFill
-        view.layer.addSublayer(previewLayer)
+        view.layer.insertSublayer(previewLayer, at: 0) // Insert as the background layer
 
-        // Add the scanner overlay with animated scanning corners
         addScannerOverlay()
 
-        // Start the capture session on a background thread
         DispatchQueue.global(qos: .userInitiated).async {
             self.captureSession.startRunning()
         }
+                        
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+                barButtonSystemItem: .close,
+                target: self,
+                action: #selector(dismissViewController)
+            )
     }
 
-    // Function to add the animated scanner overlay with only the corners visible
+    @objc private func dismissViewController() {
+        dismiss(animated: true)
+    }
+
     func addScannerOverlay() {
             let scannerWidth: CGFloat = 200
             let scannerHeight: CGFloat = 200
 
-            // Create a view that represents the scanner frame
             scannerFrame = UIView(frame: CGRect(x: 0, y: 0, width: scannerWidth, height: scannerHeight))
             scannerFrame.center = view.center
             scannerFrame.backgroundColor = .clear
             view.addSubview(scannerFrame)
 
-            // Add the image overlay for the corners
             let cornerImageView = UIImageView(image: UIImage(named: "QRScanner"))  // Your QR Scanner Image
             cornerImageView.frame = scannerFrame.bounds
             cornerImageView.contentMode = .scaleAspectFit
             scannerFrame.addSubview(cornerImageView)
 
-            // Add a label below the scanner frame to prompt the user
             let scanLabel = UILabel()
             scanLabel.text = "Scan the QR code"
             scanLabel.textColor = .white
@@ -96,17 +104,14 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
             scanLabel.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(scanLabel)
 
-            // Set constraints for the label to place it below the scanner frame
             NSLayoutConstraint.activate([
-                scanLabel.topAnchor.constraint(equalTo: scannerFrame.bottomAnchor, constant: 32), // Adjust the constant to move the text lower
+                scanLabel.topAnchor.constraint(equalTo: scannerFrame.bottomAnchor, constant: 32),
                 scanLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor)
             ])
 
-            // Add scaling animation to simulate a scanning effect
             startScannerAnimation()
         }
 
-        // Function to start the scaling animation
     func startScannerAnimation() {
         UIView.animate(withDuration: 1, delay: 0, options: [.curveEaseInOut, .allowUserInteraction], animations: {
             self.scannerFrame.transform = CGAffineTransform(scaleX: 1.1, y: 1.1)
@@ -114,13 +119,12 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
             UIView.animate(withDuration: 1, delay: 0, options: [.curveEaseInOut, .allowUserInteraction], animations: {
                 self.scannerFrame.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
             }, completion: { _ in
-                self.startScannerAnimation()  // Recursive call for continuous animation
+                self.startScannerAnimation()
             })
         })
     }
    
 
-    // Restart the session when the view reappears
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
 
@@ -131,7 +135,6 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
         }
     }
 
-    // Stop the session when the view disappears
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
 
@@ -140,7 +143,6 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
         }
     }
 
-    // Handle when a QR code is found
     func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
         captureSession.stopRunning()
 
@@ -148,33 +150,83 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
             guard let readableObject = metadataObject as? AVMetadataMachineReadableCodeObject else { return }
             guard let stringValue = readableObject.stringValue else { return }
 
-            // Handle the scanned QR code value
             found(code: stringValue)
         }
     }
 
-    // Function to handle found QR code
     func found(code: String) {
         print("Scanned QR Code: \(code)")
         
         var formattedCode = code
         
-        // Check if the URL starts with "http" or "https", if not, prepend "https://"
         if !formattedCode.lowercased().hasPrefix("http://") && !formattedCode.lowercased().hasPrefix("https://") {
             formattedCode = "https://\(formattedCode)"
         }
         
-        // Open the scanned URL
         if let url = URL(string: formattedCode) {
             UIApplication.shared.open(url, options: [:], completionHandler: nil)
         } else {
             print("Failed to create URL: \(formattedCode)")
         }
 
-        // Optionally, restart the session when you come back from the external app
         DispatchQueue.global(qos: .userInitiated).async {
             self.captureSession.startRunning()
         }
     }
+    
+    
+    func upperLabel() {
+        let text = "Scan QR Code"
+        let attributedText = NSMutableAttributedString(string: text)
+        let lightYellow = UIColor(red: 1.0, green: 1.0, blue: 0.5, alpha: 1.0)
+        
+        attributedText.addAttribute(.foregroundColor, value: lightYellow, range: (text as NSString).range(of: "QR Code"))
+        attributedText.addAttribute(.foregroundColor, value: UIColor.white, range: (text as NSString).range(of: "Scan"))
+        
+        topLabel.attributedText = attributedText
+        topLabel.textAlignment = .left
+        topLabel.numberOfLines = 1
+        topLabel.font = UIFont.systemFont(ofSize: 24)
+        topLabel.translatesAutoresizingMaskIntoConstraints = false
 
+        view.addSubview(topLabel)
+        
+        NSLayoutConstraint.activate([
+            topLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            topLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            topLabel.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -16)
+        ])
+    }
+    
+    func lowerLabel() {
+        bottomLabel.text = "Align with scanner to scan"
+        bottomLabel.textColor = .white
+        bottomLabel.textAlignment = .left
+        bottomLabel.numberOfLines = 2
+        bottomLabel.font = UIFont.systemFont(ofSize: 18, weight: .light)
+        bottomLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(bottomLabel)
+        
+        NSLayoutConstraint.activate([
+            bottomLabel.topAnchor.constraint(equalTo: topLabel.bottomAnchor, constant: 10),
+            bottomLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
+        ])
+    }
+    
+    func addCloseButton() {
+        let closeButton = UIButton(type: .system)
+        closeButton.setImage(UIImage(systemName: "xmark"), for: .normal) // Use SF Symbol for the cross icon
+        closeButton.tintColor = .white
+        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        closeButton.addTarget(self, action: #selector(dismissViewController), for: .touchUpInside)
+        
+        view.addSubview(closeButton)
+        
+        NSLayoutConstraint.activate([
+            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            closeButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            closeButton.widthAnchor.constraint(equalToConstant: 30),
+            closeButton.heightAnchor.constraint(equalToConstant: 30)
+        ])
+    }
 }

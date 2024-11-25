@@ -6,46 +6,56 @@
 //
 
 import UIKit
-import AVFoundation
 
-class HomeViewController: UIViewController {
+class HomeViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
     
-    let logoImageView = UIImageView()
+    private let contentProvider: ContentProvider
+    
+    init(contentProvider: ContentProvider = DefaultContentProvider()) {
+        self.contentProvider = contentProvider
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        self.contentProvider = DefaultContentProvider()
+        super.init(coder: coder)
+    }
+    
+    private var buttonTitles: [String] {
+        return contentProvider.getAllCategories()
+    }
+    
     let scrollView = UIScrollView()
-    
     let contentView = UIView()
-    let squareView = UIView()
-    let videoContainerView = UIView()
     
-    let descriptionLabel = UILabel()
+    let companyName = UILabel()
+    let qrButton = UIButton()
     
-    let step1View = StepView()
-    let step2View = StepView()
+    private var collectionView: UICollectionView!
+    private var selectedIndex: IndexPath?
     
-    let featuresContainerView = UIView()
+    private let imageCache = NSCache<NSString, UIImage>()
     
-    var player: AVPlayer?
-    var playerLayer: AVPlayerLayer?
-    
-    let label1 = UILabel()
-    let label2 = UILabel()
-    let label3 = UILabel()
-    
+    private var imageContainerView: UIView!
+    private var imageViews: [UIImageView] = []
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        addGradientWithBlackBackground()
+        self.navigationController?.setNavigationBarHidden(true, animated: false)
+        view.backgroundColor = .black
+        
         setupScrollView()
         setupContentView()
-        companyLogo()
-        companyName()
-        middleLabelWithSquare()
-        description()
-        setupStepViews()
-        setupFeaturesView()
-        setupVideoPlayer()
-        endingLabels()
+        setupCompanyLabel()
+        setupQRScannerButton()
+        setupHorizontalScrollView()
+        setupImageViews()
+        
+        let defaultIndex = IndexPath(item: 0, section: 0)
+        selectedIndex = defaultIndex
+        collectionView.selectItem(at: defaultIndex, animated: false, scrollPosition: .centeredHorizontally)
+        collectionView.reloadData()
     }
     
     func setupScrollView() {
@@ -71,341 +81,281 @@ class HomeViewController: UIViewController {
             contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
         ])
-        
-        contentView.heightAnchor.constraint(greaterThanOrEqualTo: view.heightAnchor).isActive = true
     }
     
-    private func companyLogo() {
-        logoImageView.image = UIImage(named: "logo")
-        logoImageView.contentMode = .scaleAspectFit
-        logoImageView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(logoImageView)
+    private func setupCompanyLabel() {
+        let text = "Effectization\nStudio"
+        let attributedText = NSMutableAttributedString(string: text)
+        let lightYellow = UIColor(red: 1.0, green: 1.0, blue: 0.5, alpha: 1.0)
+        
+        attributedText.addAttribute(.foregroundColor, value: lightYellow, range: (text as NSString).range(of: "Effectization"))
+        attributedText.addAttribute(.foregroundColor, value: UIColor.white, range: (text as NSString).range(of: "Studio"))
+        
+        companyName.attributedText = attributedText
+        companyName.textAlignment = .left
+        companyName.numberOfLines = 2
+        companyName.font = UIFont.boldSystemFont(ofSize: 36)
+        companyName.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(companyName)
         
         NSLayoutConstraint.activate([
-            logoImageView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 70),
-            logoImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 30),
-            logoImageView.heightAnchor.constraint(equalToConstant: 65),
-            logoImageView.widthAnchor.constraint(equalToConstant: 65)
-        ])
-    }
-    
-    private func companyName() {
-        let label = UILabel()
-        label.text = "Effectization\nStudio"
-        label.textColor = .white
-        label.textAlignment = .left
-        label.numberOfLines = 2
-        label.font = UIFont.systemFont(ofSize: 24)
-        label.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(label)
-        
-        NSLayoutConstraint.activate([
-            label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 70),
-            label.leadingAnchor.constraint(equalTo: logoImageView.trailingAnchor, constant: 13),
+            companyName.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 50),
+            companyName.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 30),
         ])
     }
     
-    func middleLabelWithSquare() {
-        squareView.layer.borderColor = UIColor.white.cgColor
-        squareView.layer.borderWidth = 0.6
-        squareView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(squareView)
-        
-        let label = UILabel()
-        label.text = "Connecting brands to\npeople using\nMixed Reality"
-        label.textColor = .white
-        label.textAlignment = .left
-        label.numberOfLines = 5
-        label.font = UIFont.boldSystemFont(ofSize: 40)
-        label.translatesAutoresizingMaskIntoConstraints = false
-        squareView.addSubview(label)
+    private func setupQRScannerButton() {
+        qrButton.setImage(UIImage(systemName: "qrcode.viewfinder"), for: .normal)
+        qrButton.tintColor = .white
+        qrButton.backgroundColor = UIColor(red: 35/255, green: 45/255, blue: 60/255, alpha: 1.0)
+        qrButton.layer.cornerRadius = 25
+        qrButton.clipsToBounds = true
+        qrButton.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(qrButton)
         
         NSLayoutConstraint.activate([
-            squareView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 30),
-            squareView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -30),
-            squareView.topAnchor.constraint(equalTo: logoImageView.bottomAnchor, constant: 50),
-            squareView.heightAnchor.constraint(equalToConstant: 270)
+            qrButton.widthAnchor.constraint(equalToConstant: 50),
+            qrButton.heightAnchor.constraint(equalToConstant: 50),
+            qrButton.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 60),
+            qrButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -30)
         ])
         
-        NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: squareView.leadingAnchor, constant: 20),
-            label.trailingAnchor.constraint(equalTo: squareView.trailingAnchor, constant: -20),
-            label.centerYAnchor.constraint(equalTo: squareView.centerYAnchor)
-        ])
-        
-        addTinySquares(to: squareView)
+        qrButton.addTarget(self, action: #selector(didTapQRScanner), for: .touchUpInside)
     }
     
+    @objc private func didTapQRScanner() {
+        let qrViewController = QRViewController()
+        present(qrViewController, animated: true)
+    }
     
-    func addTinySquares(to squareView: UIView) {
-        let tinySquareSize: CGFloat = 8.0
+    private func setupHorizontalScrollView() {
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .horizontal
+        layout.minimumLineSpacing = 16
+        layout.sectionInset = UIEdgeInsets(top: 0, left: 20, bottom: 0, right: 20)
         
-        // Top-left corner square
-        let topLeftSquare = createTinySquare()
-        squareView.addSubview(topLeftSquare)
-        NSLayoutConstraint.activate([
-            topLeftSquare.topAnchor.constraint(equalTo: squareView.topAnchor, constant: -tinySquareSize / 2),
-            topLeftSquare.leadingAnchor.constraint(equalTo: squareView.leadingAnchor, constant: -tinySquareSize / 2),
-            topLeftSquare.widthAnchor.constraint(equalToConstant: tinySquareSize),
-            topLeftSquare.heightAnchor.constraint(equalToConstant: tinySquareSize)
-        ])
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.delegate = self
+        collectionView.dataSource = self
+        collectionView.backgroundColor = .clear
+        collectionView.showsHorizontalScrollIndicator = false
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
         
-        // Top-right corner square
-        let topRightSquare = createTinySquare()
-        squareView.addSubview(topRightSquare)
-        NSLayoutConstraint.activate([
-            topRightSquare.topAnchor.constraint(equalTo: squareView.topAnchor, constant: -tinySquareSize / 2),
-            topRightSquare.trailingAnchor.constraint(equalTo: squareView.trailingAnchor, constant: tinySquareSize / 2),
-            topRightSquare.widthAnchor.constraint(equalToConstant: tinySquareSize),
-            topRightSquare.heightAnchor.constraint(equalToConstant: tinySquareSize)
-        ])
+        collectionView.register(HorizontalButtonCell.self, forCellWithReuseIdentifier: "HorizontalButtonCell")
         
-        // Bottom-left corner square
-        let bottomLeftSquare = createTinySquare()
-        squareView.addSubview(bottomLeftSquare)
-        NSLayoutConstraint.activate([
-            bottomLeftSquare.bottomAnchor.constraint(equalTo: squareView.bottomAnchor, constant: tinySquareSize / 2),
-            bottomLeftSquare.leadingAnchor.constraint(equalTo: squareView.leadingAnchor, constant: -tinySquareSize / 2),
-            bottomLeftSquare.widthAnchor.constraint(equalToConstant: tinySquareSize),
-            bottomLeftSquare.heightAnchor.constraint(equalToConstant: tinySquareSize)
-        ])
+        contentView.addSubview(collectionView)
         
-        // Bottom-right corner square
-        let bottomRightSquare = createTinySquare()
-        squareView.addSubview(bottomRightSquare)
         NSLayoutConstraint.activate([
-            bottomRightSquare.bottomAnchor.constraint(equalTo: squareView.bottomAnchor, constant: tinySquareSize / 2),
-            bottomRightSquare.trailingAnchor.constraint(equalTo: squareView.trailingAnchor, constant: tinySquareSize / 2),
-            bottomRightSquare.widthAnchor.constraint(equalToConstant: tinySquareSize),
-            bottomRightSquare.heightAnchor.constraint(equalToConstant: tinySquareSize)
+            collectionView.topAnchor.constraint(equalTo: companyName.bottomAnchor, constant: 20),
+            collectionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            collectionView.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
     
-    func createTinySquare() -> UIView {
-        let tinySquare = UIView()
-        tinySquare.backgroundColor = .white
-        tinySquare.translatesAutoresizingMaskIntoConstraints = false
-        return tinySquare
-    }
-    
-    func description() {
-        descriptionLabel.text = "Instantly bring print ad to life to play a\nvideo, see a 3D object, play an audio or\nmore, WITHOUT the need to download\nany app or open a web browser. Watch\nthe video below to see how it works"
-        descriptionLabel.textColor = .white
-        descriptionLabel.textAlignment = .center
-        descriptionLabel.numberOfLines = 5
-        descriptionLabel.font = UIFont.systemFont(ofSize: 17)
-        descriptionLabel.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(descriptionLabel)
+    private func setupImageViews() {
+        imageContainerView = UIView()
+        imageContainerView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(imageContainerView)
         
         NSLayoutConstraint.activate([
-            descriptionLabel.topAnchor.constraint(equalTo: squareView.bottomAnchor, constant: 40),
-            descriptionLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 10),
-            descriptionLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10)
+            imageContainerView.topAnchor.constraint(equalTo: collectionView.bottomAnchor, constant: 20),
+            imageContainerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            imageContainerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
         ])
+        
+        updateImageViews(for: "AR")
     }
     
+    private func updateImageViews(for category: String) {
+        imageContainerView.subviews.forEach { $0.removeFromSuperview() }
+        imageViews.removeAll()
+        
+        guard let contents = ContentConfiguration.contentForButtons[category] else { return }
+        
+        var lastAnchor: NSLayoutYAxisAnchor? = imageContainerView.topAnchor
+        
+        for content in contents {
+            let imageView = addImageView(with: content, below: lastAnchor, in: imageContainerView)
+            imageViews.append(imageView)
+            lastAnchor = imageView.bottomAnchor
+        }
+        
+        if let lastAnchor = lastAnchor {
+            imageContainerView.bottomAnchor.constraint(equalTo: lastAnchor, constant: 20).isActive = true
+            contentView.bottomAnchor.constraint(equalTo: imageContainerView.bottomAnchor, constant: 20).isActive = true
+        }
+    }
     
-    func setupStepViews() {
-        step1View.step = 1
-        step1View.content = "User scans the QR code on the print ad or creative."
-        contentView.addSubview(step1View)
+    private func addImageView(with content: ImageViewContent, below anchor: NSLayoutYAxisAnchor?, in containerView: UIView) -> UIImageView {
+        let imageView = UIImageView()
+        imageView.contentMode = .scaleAspectFill
+        imageView.layer.cornerRadius = 30
+        imageView.clipsToBounds = true
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.image = UIImage(systemName: "photo.fill")
+        imageView.tintColor = .gray
         
-        step2View.step = 2
-        step2View.content = "Follow on screen instructions, point to the key visual on the print ad and see it come to life."
-        contentView.addSubview(step2View)
+        let infoButton = UIButton(type: .system)
+        infoButton.setImage(UIImage(systemName: "chevron.forward"), for: .normal)
+        infoButton.tintColor = .black
+        infoButton.backgroundColor = UIColor(red: 1.0, green: 1.0, blue: 0.5, alpha: 1)
+        infoButton.layer.cornerRadius = 30
+        infoButton.translatesAutoresizingMaskIntoConstraints = false
+        infoButton.accessibilityLabel = "Open more options"
         
-        step1View.translatesAutoresizingMaskIntoConstraints = false
-        step2View.translatesAutoresizingMaskIntoConstraints = false
+        let urlKey = UnsafeRawPointer(bitPattern: "linkUrl".hashValue)!
+        infoButton.setAssociatedObject(content.linkUrl, forKey: urlKey)
+        infoButton.addTarget(self, action: #selector(openWikipediaLink(_:)), for: .touchUpInside)
+        
+        let imageTitle = UILabel()
+        imageTitle.text = content.topTitle
+        imageTitle.textColor = UIColor(red: 1.0, green: 1.0, blue: 0.5, alpha: 1)
+        imageTitle.textAlignment = .center
+        imageTitle.numberOfLines = 2
+        imageTitle.font = UIFont.systemFont(ofSize: 19, weight: .semibold)
+        imageTitle.translatesAutoresizingMaskIntoConstraints = false
+        imageTitle.adjustsFontForContentSizeCategory = true
+        imageTitle.accessibilityLabel = content.topTitle
+        
+        let blurredView = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
+        blurredView.translatesAutoresizingMaskIntoConstraints = false
+        blurredView.backgroundColor = UIColor(white: 0.5, alpha: 0.01)
+        blurredView.layer.cornerRadius = 25
+        blurredView.clipsToBounds = true
+        
+        blurredView.layer.shadowColor = UIColor.black.cgColor
+        blurredView.layer.shadowOpacity = 0.3
+        blurredView.layer.shadowOffset = CGSize(width: 0, height: 5)
+        blurredView.layer.shadowRadius = 10
+        
+        let overlayView = UIView()
+        overlayView.translatesAutoresizingMaskIntoConstraints = false
+        overlayView.backgroundColor = UIColor(white: 15, alpha: 0.01)
+        overlayView.layer.cornerRadius = 25
+        overlayView.clipsToBounds = true
+        
+        blurredView.contentView.addSubview(overlayView)
+        
+        containerView.addSubview(imageView)
+        containerView.addSubview(infoButton)
+        blurredView.contentView.addSubview(imageTitle)
+        containerView.addSubview(blurredView)
         
         NSLayoutConstraint.activate([
-            step1View.topAnchor.constraint(equalTo: descriptionLabel.bottomAnchor, constant: 40),
-            step1View.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            step1View.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            imageView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 15),
+            imageView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -15),
+            imageView.heightAnchor.constraint(equalToConstant: 500),
+            imageView.topAnchor.constraint(equalTo: anchor ?? containerView.topAnchor, constant: 20),
             
-            step2View.topAnchor.constraint(equalTo: step1View.bottomAnchor, constant: 20),
-            step2View.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            step2View.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            infoButton.widthAnchor.constraint(equalToConstant: 60),
+            infoButton.heightAnchor.constraint(equalToConstant: 60),
+            infoButton.bottomAnchor.constraint(equalTo: imageView.bottomAnchor, constant: -20),
+            infoButton.trailingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: -20),
+            
+            blurredView.bottomAnchor.constraint(equalTo: imageView.bottomAnchor, constant: -25),
+            blurredView.leadingAnchor.constraint(equalTo: imageView.leadingAnchor, constant: 20),
+            blurredView.widthAnchor.constraint(equalTo: imageView.widthAnchor, multiplier: 0.5),
+            blurredView.heightAnchor.constraint(greaterThanOrEqualToConstant: 55),
+            
+            overlayView.topAnchor.constraint(equalTo: blurredView.contentView.topAnchor),
+            overlayView.leadingAnchor.constraint(equalTo: blurredView.contentView.leadingAnchor),
+            overlayView.trailingAnchor.constraint(equalTo: blurredView.contentView.trailingAnchor),
+            overlayView.bottomAnchor.constraint(equalTo: blurredView.contentView.bottomAnchor),
+            
+            imageTitle.centerXAnchor.constraint(equalTo: blurredView.centerXAnchor),
+            imageTitle.centerYAnchor.constraint(equalTo: blurredView.centerYAnchor),
+            imageTitle.leadingAnchor.constraint(equalTo: blurredView.leadingAnchor, constant: 10),
+            imageTitle.trailingAnchor.constraint(equalTo: blurredView.trailingAnchor, constant: -10)
         ])
-    }
-    
-    
-    func setupFeaturesView() {
-        featuresContainerView.backgroundColor = .clear
-        contentView.addSubview(featuresContainerView)
         
-        featuresContainerView.translatesAutoresizingMaskIntoConstraints = false
-        
-        NSLayoutConstraint.activate([
-            featuresContainerView.topAnchor.constraint(equalTo: step2View.bottomAnchor, constant: 40),
-            featuresContainerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            featuresContainerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20)
-        ])
-        
-        let features = [
-            ("xmark.circle.fill", "No app download"),
-            ("safari", "No web browser"),
-            ("clock", "Frictionless & quick"),
-            ("bolt.fill", "Instant experience")
-        ]
-        
-        var previousView: UIView?
-        
-        for (index, (iconName, text)) in features.enumerated() {
-            let featureRow = FeatureRowView()
-            featureRow.iconName = iconName
-            featureRow.text = text
-            featuresContainerView.addSubview(featureRow)
-            
-            featureRow.translatesAutoresizingMaskIntoConstraints = false
-            
-            NSLayoutConstraint.activate([
-                featureRow.leadingAnchor.constraint(equalTo: featuresContainerView.leadingAnchor),
-                featureRow.trailingAnchor.constraint(equalTo: featuresContainerView.trailingAnchor),
-                featureRow.heightAnchor.constraint(equalToConstant: 44)
-            ])
-            
-            if let previousView = previousView {
-                featureRow.topAnchor.constraint(equalTo: previousView.bottomAnchor, constant: 16).isActive = true
-            } else {
-                featureRow.topAnchor.constraint(equalTo: featuresContainerView.topAnchor).isActive = true
+        if let cachedImage = imageCache.object(forKey: content.imageUrl as NSString) {
+            DispatchQueue.main.async {
+                imageView.image = cachedImage
             }
-            
-            if index < features.count - 1 {
-                let separator = SeparatorView()
-                featuresContainerView.addSubview(separator)
-                separator.translatesAutoresizingMaskIntoConstraints = false
-                
-                NSLayoutConstraint.activate([
-                    separator.topAnchor.constraint(equalTo: featureRow.bottomAnchor, constant: 8),
-                    separator.leadingAnchor.constraint(equalTo: featuresContainerView.leadingAnchor),
-                    separator.trailingAnchor.constraint(equalTo: featuresContainerView.trailingAnchor),
-                    separator.heightAnchor.constraint(equalToConstant: 1)
-                ])
-                
-                previousView = separator
-            } else {
-                featureRow.bottomAnchor.constraint(equalTo: featuresContainerView.bottomAnchor).isActive = true
+            return imageView
+        }
+        
+        guard let url = URL(string: content.imageUrl) else { return imageView }
+        
+        URLSession.shared.dataTask(with: url) { [weak self] (data, _, error) in
+            if let error = error {
+                print("Image download error: \(error.localizedDescription)")
+                return
             }
-            
-            previousView = featureRow
+            guard let data = data, let image = UIImage(data: data) else {
+                print("Invalid image data")
+                return
+            }
+            self?.imageCache.setObject(image, forKey: content.imageUrl as NSString)
+            DispatchQueue.main.async {
+                imageView.image = image
+            }
+        }.resume()
+        
+        return imageView
+    }
+    
+    
+    @objc private func openWikipediaLink(_ sender: UIButton) {
+        let key = UnsafeRawPointer(bitPattern: "linkUrl".hashValue)!
+        guard let urlString = sender.getAssociatedObject(forKey: key) as? String,
+              let url = URL(string: urlString) else { return }
+        
+        if UIApplication.shared.canOpenURL(url) {
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
         }
     }
     
-    
-    func setupVideoPlayer() {
-        videoContainerView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(videoContainerView)
-
-        NSLayoutConstraint.activate([
-            videoContainerView.topAnchor.constraint(equalTo: featuresContainerView.bottomAnchor, constant: 20),
-            videoContainerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            videoContainerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            videoContainerView.heightAnchor.constraint(equalToConstant: 450) // Set the desired height for the video view
-        ])
-
-        // Replace this with your remote video URL
-        guard let videoURL = URL(string: "https://effectizationstudio.com/iosHomePage") else {
-            return
-        }
-
-        player = AVPlayer(url: videoURL)
-        let playerLayer = AVPlayerLayer(player: player)
-        playerLayer.videoGravity = .resizeAspectFill
-        playerLayer.frame = videoContainerView.bounds
-        playerLayer.masksToBounds = true
-
-        videoContainerView.layer.addSublayer(playerLayer)
-        videoContainerView.layer.layoutIfNeeded()
-
-        // Observe when the video finishes playing to replay it
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(replayVideo),
-                                               name: .AVPlayerItemDidPlayToEndTime,
-                                               object: player?.currentItem)
-
-        player?.play()
-
-        videoContainerView.layer.masksToBounds = true
-        self.playerLayer = playerLayer
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return buttonTitles.count
     }
-
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        playerLayer?.frame = videoContainerView.bounds
-    }
-
-    @objc func replayVideo() {
-        playerLayer?.player?.seek(to: .zero)
-        playerLayer?.player?.play()
-    }
-
-        
-        deinit {
-            NotificationCenter.default.removeObserver(self)
-        }
     
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "HorizontalButtonCell", for: indexPath) as! HorizontalButtonCell
+        cell.configure(with: buttonTitles[indexPath.item], isSelected: indexPath == selectedIndex)
+        return cell
+    }
     
-    func endingLabels() {
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        let widestWidth = buttonTitles.map { title in
+            title.size(withAttributes: [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 16)]).width + 32
+        }.max() ?? 100
         
-        label1.text = "Bring any of your print\ncollaterals to life -"
-        label1.textColor = .white
-        label1.textAlignment = .left
-        label1.numberOfLines = 2
-        label1.font = UIFont.systemFont(ofSize: 30, weight: .thin)
-        label1.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(label1)
-        
-        label2.text = "Newspaper ads, magazine ads, brochures, collaterals, hoardings, standees and more."
-        label2.textColor = .white
-        label2.textAlignment = .left
-        label2.numberOfLines = 4
-        label2.font = UIFont.boldSystemFont(ofSize: 30)
-        label2.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(label2)
-        
-        label3.text = "Instant AR on print is powered by technology,\nbuilt by Effectization Studio"
-        label3.textColor = .white
-        label3.textAlignment = .left
-        label3.numberOfLines = 4
-        label3.font = UIFont.boldSystemFont(ofSize: 16)
-        label3.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(label3)
-        
-        NSLayoutConstraint.activate([
-            label1.topAnchor.constraint(equalTo: videoContainerView.bottomAnchor, constant: 40),
-            label1.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 30),
-            label1.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -30),
+        return CGSize(width: widestWidth, height: 45)
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        if selectedIndex != indexPath {
+            selectedIndex = indexPath
+            let selectedCategory = buttonTitles[indexPath.item]
             
-            label2.topAnchor.constraint(equalTo: label1.bottomAnchor, constant: 10),
-            label2.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 30),
-            label2.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
+            UIView.transition(with: imageContainerView,
+                              duration: 0.5,
+                              options: .transitionCrossDissolve,
+                              animations: {
+                self.imageViews.forEach { $0.removeFromSuperview() }
+                self.imageViews.removeAll()
+                
+                self.updateImageViews(for: selectedCategory)
+            }, completion: nil)
             
-            label3.topAnchor.constraint(equalTo: label2.bottomAnchor, constant: 40),
-            label3.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 30),
-            label3.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -30),
-            label3.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -85)
-        ])
-    }
-    
-    
-    private func addGradientWithBlackBackground() {
-        let gradientLayer = CAGradientLayer()
-        
-        gradientLayer.colors = [
-            UIColor.systemPink.withAlphaComponent(0.7).cgColor,
-            UIColor.black.cgColor,
-            UIColor.black.cgColor,
-            UIColor.purple.withAlphaComponent(0.7).cgColor
-        ]
-        
-        gradientLayer.locations = [0.0, 0.2, 0.8, 1.0]
-        gradientLayer.startPoint = CGPoint(x: 0.0, y: 1.0)
-        gradientLayer.endPoint = CGPoint(x: 1.0, y: 0.0)
-        gradientLayer.frame = view.bounds
-        
-        view.layer.addSublayer(gradientLayer)
+            collectionView.reloadData()
+        }
+        print("\(buttonTitles[indexPath.item]) tapped")
     }
 }
 
-
-
+extension UIButton {
+    private struct AssociatedKeys {
+        static var linkUrlKey = "linkUrlKey"
+    }
+    
+    func setAssociatedObject(_ object: Any, forKey key: UnsafeRawPointer) {
+        objc_setAssociatedObject(self, key, object, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    }
+    
+    func getAssociatedObject(forKey key: UnsafeRawPointer) -> Any? {
+        return objc_getAssociatedObject(self, key)
+    }
+}

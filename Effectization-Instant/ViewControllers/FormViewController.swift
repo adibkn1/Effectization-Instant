@@ -11,6 +11,7 @@ class FormViewController: UIViewController, UITextFieldDelegate {
     
     private let scrollView = UIScrollView()
     private let contentView = UIView()
+    private let companyName = UILabel()
     
     private let logoImageView = UIImageView()
     private let label1 = UILabel()
@@ -26,7 +27,7 @@ class FormViewController: UIViewController, UITextFieldDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        addGradientWithBlackBackground()
+        view.backgroundColor = .black
         setupScrollView()
         setupUI()
         setupGesturesAndObservers()
@@ -59,14 +60,14 @@ class FormViewController: UIViewController, UITextFieldDelegate {
     
     private func setupUI() {
         companyLogo()
-        companyName()
+        companyLabel()
         getInTouch()
         setupTextFields()
         createSubmitButton()
     }
     
     private func companyLogo() {
-        logoImageView.image = UIImage(named: "logo")
+        logoImageView.image = UIImage(named: "companylogo")
         logoImageView.contentMode = .scaleAspectFit
         logoImageView.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(logoImageView)
@@ -79,19 +80,24 @@ class FormViewController: UIViewController, UITextFieldDelegate {
         ])
     }
     
-    private func companyName() {
-        let label = UILabel()
-        label.text = "Effectization\nStudio"
-        label.textColor = .white
-        label.textAlignment = .left
-        label.numberOfLines = 2
-        label.font = UIFont.systemFont(ofSize: 24)
-        label.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(label)
+    private func companyLabel() {
+        let text = "Effectization\nStudio"
+        let attributedText = NSMutableAttributedString(string: text)
+        let lightYellow = UIColor(red: 1.0, green: 1.0, blue: 0.5, alpha: 1.0)
+        
+        attributedText.addAttribute(.foregroundColor, value: lightYellow, range: (text as NSString).range(of: "Effectization"))
+        attributedText.addAttribute(.foregroundColor, value: UIColor.white, range: (text as NSString).range(of: "Studio"))
+        
+        companyName.attributedText = attributedText
+        companyName.textAlignment = .left
+        companyName.numberOfLines = 2
+        companyName.font = UIFont.boldSystemFont(ofSize: 28)
+        companyName.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(companyName)
         
         NSLayoutConstraint.activate([
-            label.topAnchor.constraint(equalTo: contentView.safeAreaLayoutGuide.topAnchor, constant: 20),
-            label.leadingAnchor.constraint(equalTo: logoImageView.trailingAnchor, constant: 13),
+            companyName.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 80),
+            companyName.leadingAnchor.constraint(equalTo: logoImageView.trailingAnchor, constant: 20),
         ])
     }
     
@@ -105,7 +111,7 @@ class FormViewController: UIViewController, UITextFieldDelegate {
         contentView.addSubview(label1)
         
         NSLayoutConstraint.activate([
-            label1.topAnchor.constraint(equalTo: logoImageView.bottomAnchor, constant: 50),
+            label1.topAnchor.constraint(equalTo: companyName.bottomAnchor, constant: 50),
             label1.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
         ])
     }
@@ -113,11 +119,15 @@ class FormViewController: UIViewController, UITextFieldDelegate {
     private func setupTextFields() {
         let textFields = [nameTextField, emailTextField, companyTextField, inputTextField]
         let placeholders = ["Name", "Email", "Company", "Message"]
+        let placeholderAttributes: [NSAttributedString.Key: Any] = [
+            .foregroundColor: UIColor.gray
+        ]
         
         for (index, textField) in textFields.enumerated() {
             textField.placeholder = placeholders[index]
+            textField.attributedPlaceholder = NSAttributedString(string: textField.placeholder ?? "", attributes: placeholderAttributes)
             textField.borderStyle = .roundedRect
-            textField.backgroundColor = .clear
+            textField.backgroundColor = UIColor(red: 35/255, green: 45/255, blue: 60/255, alpha: 1.0)
             textField.textColor = .white
             textField.delegate = self
             textField.translatesAutoresizingMaskIntoConstraints = false
@@ -151,7 +161,7 @@ class FormViewController: UIViewController, UITextFieldDelegate {
     private func createSubmitButton() {
         submitButton = UIButton(type: .system)
         submitButton.setTitle("Submit", for: .normal)
-        submitButton.setTitleColor(.white, for: .normal)
+        submitButton.setTitleColor(.black, for: .normal)
         submitButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
         submitButton.layer.borderWidth = 1.0
         submitButton.layer.borderColor = UIColor.clear.cgColor
@@ -161,8 +171,8 @@ class FormViewController: UIViewController, UITextFieldDelegate {
         
         let gradientLayer = CAGradientLayer()
         gradientLayer.colors = [
-            UIColor.systemPink.cgColor,
-            UIColor.purple.cgColor
+            UIColor.systemYellow.cgColor,
+            UIColor(red: 1.0, green: 1.0, blue: 0.5, alpha: 1.0).cgColor
         ]
         gradientLayer.startPoint = CGPoint(x: 0, y: 0)
         gradientLayer.endPoint = CGPoint(x: 1, y: 1)
@@ -176,7 +186,7 @@ class FormViewController: UIViewController, UITextFieldDelegate {
         NSLayoutConstraint.activate([
             submitButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 30),
             submitButton.topAnchor.constraint(equalTo: inputTextField.bottomAnchor, constant: 30),
-            submitButton.widthAnchor.constraint(equalToConstant: 120),
+            submitButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -30),
             submitButton.heightAnchor.constraint(equalToConstant: 50),
         ])
         
@@ -187,24 +197,6 @@ class FormViewController: UIViewController, UITextFieldDelegate {
         gradientLayer.frame = submitButton.bounds
     }
     
-    private func addGradientWithBlackBackground() {
-        let gradientLayer = CAGradientLayer()
-        
-        gradientLayer.colors = [
-            UIColor.systemPink.withAlphaComponent(0.7).cgColor,
-            UIColor.black.cgColor,
-            UIColor.black.cgColor,
-            UIColor.purple.withAlphaComponent(0.7).cgColor
-        ]
-        
-        gradientLayer.locations = [0.0, 0.2, 0.8, 1.0]
-        
-        gradientLayer.startPoint = CGPoint(x: 0.0, y: 1.0)
-        gradientLayer.endPoint = CGPoint(x: 1.0, y: 0.0)
-        gradientLayer.frame = view.bounds
-        
-        view.layer.insertSublayer(gradientLayer, at: 0)
-    }
     
     @objc private func submitButtonTapped() {
         submitForm()

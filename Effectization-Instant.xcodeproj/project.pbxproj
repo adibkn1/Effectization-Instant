@@ -380,7 +380,7 @@
 				DEVELOPMENT_TEAM = C7XA5GZG35;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Effectization-Instant/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Print AR";
+				INFOPLIST_KEY_CFBundleDisplayName = Adagxr;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSCameraUsageDescription = "We need camera access to run AR features";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -419,7 +419,7 @@
 				DEVELOPMENT_TEAM = C7XA5GZG35;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Effectization-Instant/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Print AR";
+				INFOPLIST_KEY_CFBundleDisplayName = Adagxr;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSCameraUsageDescription = "We need camera access to run AR features";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -459,7 +459,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ARClip1/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Effectization-Instant";
+				INFOPLIST_KEY_CFBundleDisplayName = Adagxr;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This App Clip requires access to the camera to provide AR functionality.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -498,7 +498,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ARClip1/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Effectization-Instant";
+				INFOPLIST_KEY_CFBundleDisplayName = Adagxr;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This App Clip requires access to the camera to provide AR functionality.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

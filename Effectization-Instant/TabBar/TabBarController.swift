@@ -6,7 +6,6 @@
 //
 
 import UIKit
-//import SwiftUI
 
 class MainTabBarController: UITabBarController {
     
@@ -25,14 +24,15 @@ class MainTabBarController: UITabBarController {
     
     private func setupViewControllers() {
         let homeVC = HomeViewController()
-        let qrVC = QRViewController()
         let formVC = FormViewController()
         
-        homeVC.tabBarItem = UITabBarItem(title: nil, image: UIImage(systemName: "house.fill"), tag: 0)
-        qrVC.tabBarItem = UITabBarItem(title: nil, image: UIImage(systemName: "qrcode"), tag: 1)
-        formVC.tabBarItem = UITabBarItem(title: nil, image: UIImage(systemName: "envelope.fill"), tag: 2)
+        homeVC.tabBarItem = UITabBarItem(title: nil, image: UIImage(systemName: "globe"), tag: 0)
+        formVC.tabBarItem = UITabBarItem(title: nil, image: UIImage(systemName: "ellipsis.message"), tag: 1)
         
-        setViewControllers([homeVC, qrVC, formVC], animated: false)
+        homeVC.tabBarItem.imageInsets = UIEdgeInsets(top: -10, left: 0, bottom: 100, right: 0)
+        formVC.tabBarItem.imageInsets = UIEdgeInsets(top: -10, left: 0, bottom: 100, right: 0)
+        
+        setViewControllers([homeVC, formVC], animated: false)
         selectedIndex = 0
     }
     
@@ -42,8 +42,8 @@ class MainTabBarController: UITabBarController {
         
         customTabBar.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            customTabBar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            customTabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            customTabBar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 120),
+            customTabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -120),
             customTabBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
             customTabBar.heightAnchor.constraint(equalToConstant: 60)
         ])
