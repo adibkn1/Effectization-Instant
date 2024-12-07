@@ -42,10 +42,10 @@ class MainTabBarController: UITabBarController {
         
         customTabBar.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            customTabBar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 120),
-            customTabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -120),
-            customTabBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            customTabBar.heightAnchor.constraint(equalToConstant: 60)
+            customTabBar.centerXAnchor.constraint(equalTo: view.centerXAnchor), // Center horizontally
+            customTabBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor), // Align to the bottom
+            customTabBar.heightAnchor.constraint(equalToConstant: 60), // Set fixed height
+            customTabBar.widthAnchor.constraint(equalToConstant: 200) // Set fixed width
         ])
         
         customTabBar.items = viewControllers?.map { $0.tabBarItem }

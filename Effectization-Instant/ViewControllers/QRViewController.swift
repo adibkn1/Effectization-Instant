@@ -80,7 +80,11 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
     }
 
     @objc private func dismissViewController() {
-        dismiss(animated: true)
+        if presentingViewController != nil {
+                dismiss(animated: true, completion: nil)
+            } else {
+                navigationController?.popViewController(animated: true)
+            }
     }
 
     func addScannerOverlay() {

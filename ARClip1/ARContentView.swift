@@ -75,7 +75,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     // Preload the video in the background when the app opens
     func preloadVideo() {
         DispatchQueue.global().async {
-            let videoURLString = "https://github.com/adibkn1/FlappyBird/raw/refs/heads/main/igloo.mp4" // Replace with your actual video URL
+            let videoURLString = "https://github.com/adibkn1/FlappyBird/raw/refs/heads/main/113.mp4" // Replace with your actual video URL
             guard let videoURL = URL(string: videoURLString) else {
                 print("Invalid video URL.")
                 return
@@ -277,7 +277,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         arrowImageView.contentMode = .scaleAspectFit
 
         let label = UILabel()
-        label.text = "Happy National Day"
+        label.text = "More info"
         label.textColor = .black
         label.font = UIFont.systemFont(ofSize: 18, weight: .medium)
         label.textAlignment = .center
@@ -313,7 +313,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
     // Action performed when the button is tapped
     @objc func buttonTapped() {
-        if let url = URL(string: "https://www.effectizationstudio.com") {
+        if let url = URL(string: "https://komaki.in/") {
             UIApplication.shared.open(url, options: [:], completionHandler: nil)
         }
         print("Button tapped and URL opened.")

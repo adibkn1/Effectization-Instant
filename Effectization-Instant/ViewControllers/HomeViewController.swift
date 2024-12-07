@@ -125,7 +125,8 @@ class HomeViewController: UIViewController, UICollectionViewDataSource, UICollec
     
     @objc private func didTapQRScanner() {
         let qrViewController = QRViewController()
-        present(qrViewController, animated: true)
+        qrViewController.modalPresentationStyle = .fullScreen
+        present(qrViewController, animated: true, completion: nil)
     }
     
     private func setupHorizontalScrollView() {
@@ -255,19 +256,20 @@ class HomeViewController: UIViewController, UICollectionViewDataSource, UICollec
             
             blurredView.bottomAnchor.constraint(equalTo: imageView.bottomAnchor, constant: -25),
             blurredView.leadingAnchor.constraint(equalTo: imageView.leadingAnchor, constant: 20),
-            blurredView.widthAnchor.constraint(equalTo: imageView.widthAnchor, multiplier: 0.5),
+            blurredView.trailingAnchor.constraint(lessThanOrEqualTo: imageView.trailingAnchor, constant: -20),
             blurredView.heightAnchor.constraint(greaterThanOrEqualToConstant: 55),
+            
+            imageTitle.topAnchor.constraint(equalTo: blurredView.contentView.topAnchor, constant: 8),
+            imageTitle.bottomAnchor.constraint(equalTo: blurredView.contentView.bottomAnchor, constant: -8),
+            imageTitle.leadingAnchor.constraint(equalTo: blurredView.contentView.leadingAnchor, constant: 18),
+            imageTitle.trailingAnchor.constraint(equalTo: blurredView.contentView.trailingAnchor, constant: -18),
             
             overlayView.topAnchor.constraint(equalTo: blurredView.contentView.topAnchor),
             overlayView.leadingAnchor.constraint(equalTo: blurredView.contentView.leadingAnchor),
             overlayView.trailingAnchor.constraint(equalTo: blurredView.contentView.trailingAnchor),
-            overlayView.bottomAnchor.constraint(equalTo: blurredView.contentView.bottomAnchor),
-            
-            imageTitle.centerXAnchor.constraint(equalTo: blurredView.centerXAnchor),
-            imageTitle.centerYAnchor.constraint(equalTo: blurredView.centerYAnchor),
-            imageTitle.leadingAnchor.constraint(equalTo: blurredView.leadingAnchor, constant: 10),
-            imageTitle.trailingAnchor.constraint(equalTo: blurredView.trailingAnchor, constant: -10)
+            overlayView.bottomAnchor.constraint(equalTo: blurredView.contentView.bottomAnchor)
         ])
+
         
         if let cachedImage = imageCache.object(forKey: content.imageUrl as NSString) {
             DispatchQueue.main.async {
