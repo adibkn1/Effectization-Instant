@@ -11,7 +11,6 @@ class FormViewController: UIViewController, UITextFieldDelegate {
     
     private let scrollView = UIScrollView()
     private let contentView = UIView()
-    private let companyName = UILabel()
     
     private let logoImageView = UIImageView()
     private let label1 = UILabel()
@@ -27,7 +26,7 @@ class FormViewController: UIViewController, UITextFieldDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        view.backgroundColor = .black
+        addGradientWithBlackBackground()
         setupScrollView()
         setupUI()
         setupGesturesAndObservers()
@@ -40,6 +39,14 @@ class FormViewController: UIViewController, UITextFieldDelegate {
     private func setupScrollView() {
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         contentView.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Hide scroll indicators
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.showsHorizontalScrollIndicator = false
+        
+        // Add keyboard dismiss gesture
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        scrollView.addGestureRecognizer(tapGesture)
         
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
@@ -59,102 +66,70 @@ class FormViewController: UIViewController, UITextFieldDelegate {
     }
     
     private func setupUI() {
-        companyLogo()
-        companyLabel()
         getInTouch()
         setupTextFields()
         createSubmitButton()
     }
     
-    private func companyLogo() {
-        logoImageView.image = UIImage(named: "companylogo")
-        logoImageView.contentMode = .scaleAspectFit
-        logoImageView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(logoImageView)
-        
-        NSLayoutConstraint.activate([
-            logoImageView.topAnchor.constraint(equalTo: contentView.safeAreaLayoutGuide.topAnchor, constant: 20),
-            logoImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 30),
-            logoImageView.heightAnchor.constraint(equalToConstant: 65),
-            logoImageView.widthAnchor.constraint(equalToConstant: 65)
-        ])
-    }
-    
-    private func companyLabel() {
-        let text = "Effectization\nStudio"
-        let attributedText = NSMutableAttributedString(string: text)
-        let lightYellow = UIColor(red: 1.0, green: 1.0, blue: 0.5, alpha: 1.0)
-        
-        attributedText.addAttribute(.foregroundColor, value: lightYellow, range: (text as NSString).range(of: "Effectization"))
-        attributedText.addAttribute(.foregroundColor, value: UIColor.white, range: (text as NSString).range(of: "Studio"))
-        
-        companyName.attributedText = attributedText
-        companyName.textAlignment = .left
-        companyName.numberOfLines = 2
-        companyName.font = UIFont.boldSystemFont(ofSize: 28)
-        companyName.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(companyName)
-        
-        NSLayoutConstraint.activate([
-            companyName.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 80),
-            companyName.leadingAnchor.constraint(equalTo: logoImageView.trailingAnchor, constant: 20),
-        ])
-    }
-    
     private func getInTouch() {
-        label1.text = "GET IN TOUCH"
+        label1.text = "Get in Touch"
         label1.textColor = .white
         label1.textAlignment = .left
-        label1.numberOfLines = 2
-        label1.font = UIFont.systemFont(ofSize: 24, weight: .heavy)
+        label1.numberOfLines = 1
+        label1.font = UIFont.systemFont(ofSize: 34, weight: .bold)
         label1.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(label1)
         
+        let subtitleLabel = UILabel()
+        subtitleLabel.text = "We'd love to hear from you"
+        subtitleLabel.textColor = UIColor.white.withAlphaComponent(0.6)
+        subtitleLabel.font = UIFont.systemFont(ofSize: 17)
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(subtitleLabel)
+        
         NSLayoutConstraint.activate([
-            label1.topAnchor.constraint(equalTo: companyName.bottomAnchor, constant: 50),
-            label1.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            label1.topAnchor.constraint(equalTo: contentView.safeAreaLayoutGuide.topAnchor, constant: 48),
+            label1.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            
+            subtitleLabel.topAnchor.constraint(equalTo: label1.bottomAnchor, constant: 8),
+            subtitleLabel.leadingAnchor.constraint(equalTo: label1.leadingAnchor)
         ])
     }
     
     private func setupTextFields() {
         let textFields = [nameTextField, emailTextField, companyTextField, inputTextField]
         let placeholders = ["Name", "Email", "Company", "Message"]
-        let placeholderAttributes: [NSAttributedString.Key: Any] = [
-            .foregroundColor: UIColor.gray
-        ]
         
         for (index, textField) in textFields.enumerated() {
             textField.placeholder = placeholders[index]
-            textField.attributedPlaceholder = NSAttributedString(string: textField.placeholder ?? "", attributes: placeholderAttributes)
-            textField.borderStyle = .roundedRect
-            textField.backgroundColor = UIColor(red: 35/255, green: 45/255, blue: 60/255, alpha: 1.0)
             textField.textColor = .white
             textField.delegate = self
             textField.translatesAutoresizingMaskIntoConstraints = false
             contentView.addSubview(textField)
-            
-            textField.returnKeyType = .done
+            textField.returnKeyType = .next // Change return key to next
+            applyTextFieldStyles(to: textField)
         }
         
-        emailTextField.keyboardType = .emailAddress
+        // Set last text field's return key to done
+        inputTextField.returnKeyType = .done
         
-        let stackView = UIStackView(arrangedSubviews: textFields)
-        stackView.axis = .vertical
-        stackView.spacing = 16
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(stackView)
+        let formStack = UIStackView(arrangedSubviews: textFields)
+        formStack.axis = .vertical
+        formStack.spacing = 16
+        formStack.translatesAutoresizingMaskIntoConstraints = false
+        formStack.setCustomSpacing(24, after: companyTextField)
+        contentView.addSubview(formStack)
         
         NSLayoutConstraint.activate([
-            stackView.topAnchor.constraint(equalTo: label1.bottomAnchor, constant: 20),
-            stackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            stackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20)
+            formStack.topAnchor.constraint(equalTo: label1.bottomAnchor, constant: 48),
+            formStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            formStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
         ])
         
-        nameTextField.heightAnchor.constraint(equalToConstant: 44).isActive = true
-        emailTextField.heightAnchor.constraint(equalToConstant: 44).isActive = true
-        companyTextField.heightAnchor.constraint(equalToConstant: 44).isActive = true
-        
-        inputTextField.heightAnchor.constraint(equalToConstant: 88).isActive = true
+        nameTextField.heightAnchor.constraint(equalToConstant: 50).isActive = true
+        emailTextField.heightAnchor.constraint(equalToConstant: 50).isActive = true
+        companyTextField.heightAnchor.constraint(equalToConstant: 50).isActive = true
+        inputTextField.heightAnchor.constraint(equalToConstant: 120).isActive = true
     }
     
     
@@ -162,41 +137,34 @@ class FormViewController: UIViewController, UITextFieldDelegate {
         submitButton = UIButton(type: .system)
         submitButton.setTitle("Submit", for: .normal)
         submitButton.setTitleColor(.black, for: .normal)
-        submitButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
-        submitButton.layer.borderWidth = 1.0
-        submitButton.layer.borderColor = UIColor.clear.cgColor
+        submitButton.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
+        submitButton.backgroundColor = .white
         submitButton.layer.cornerRadius = 25
         submitButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        submitButton.layer.shadowColor = UIColor.white.withAlphaComponent(0.5).cgColor
+        submitButton.layer.shadowOffset = CGSize(width: 0, height: 2)
+        submitButton.layer.shadowRadius = 4
+        submitButton.layer.shadowOpacity = 0.1
+        
         contentView.addSubview(submitButton)
-        
-        let gradientLayer = CAGradientLayer()
-        gradientLayer.colors = [
-            UIColor.systemYellow.cgColor,
-            UIColor(red: 1.0, green: 1.0, blue: 0.5, alpha: 1.0).cgColor
-        ]
-        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
-        gradientLayer.endPoint = CGPoint(x: 1, y: 1)
-        gradientLayer.frame = CGRect(x: 0, y: 0, width: 120, height: 50)
-        gradientLayer.cornerRadius = 25
-        
-        submitButton.layer.insertSublayer(gradientLayer, at: 0)
         
         submitButton.addTarget(self, action: #selector(submitButtonTapped), for: .touchUpInside)
         
         NSLayoutConstraint.activate([
-            submitButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 30),
-            submitButton.topAnchor.constraint(equalTo: inputTextField.bottomAnchor, constant: 30),
-            submitButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -30),
+            submitButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            submitButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            submitButton.topAnchor.constraint(equalTo: inputTextField.bottomAnchor, constant: 32),
             submitButton.heightAnchor.constraint(equalToConstant: 50),
         ])
         
-        submitButtonBottomConstraint = submitButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
+        submitButtonBottomConstraint = submitButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -32)
         submitButtonBottomConstraint?.isActive = true
-        
-        submitButton.layoutIfNeeded()
-        gradientLayer.frame = submitButton.bounds
     }
     
+    private func addGradientWithBlackBackground() {
+        view.backgroundColor = UIColor(red: 0.07, green: 0.07, blue: 0.09, alpha: 1.0)
+    }
     
     @objc private func submitButtonTapped() {
         submitForm()
@@ -280,30 +248,67 @@ class FormViewController: UIViewController, UITextFieldDelegate {
     @objc private func keyboardWillShow(notification: NSNotification) {
         guard let keyboardSize = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue else { return }
         
-        let keyboardHeight = keyboardSize.height
-        let bottomPadding = view.safeAreaInsets.bottom
+        // Find the active text field
+        let activeTextField: UITextField? = [nameTextField, emailTextField, companyTextField, inputTextField].first { $0.isFirstResponder }
         
-        submitButtonBottomConstraint?.constant = -keyboardHeight - 20 + bottomPadding
+        guard let activeField = activeTextField else { return }
         
-        let submitButtonBottom = submitButton.frame.origin.y + submitButton.frame.size.height + 20 // 20 is the bottom margin
-        let newContentOffset = CGPoint(x: 0, y: max(submitButtonBottom - scrollView.frame.size.height + keyboardHeight, 0))
+        let bottomOfTextField = activeField.convert(activeField.bounds, to: scrollView).maxY
+        let topOfKeyboard = scrollView.frame.height - keyboardSize.height
         
-        UIView.animate(withDuration: 0.3) {
-            self.view.layoutIfNeeded()
-            self.scrollView.setContentOffset(newContentOffset, animated: false)
+        // Calculate the offset needed to show the active text field
+        let offset = bottomOfTextField - topOfKeyboard + 20 // 20 points of padding
+        
+        if offset > 0 {
+            scrollView.setContentOffset(CGPoint(x: 0, y: offset), animated: true)
         }
     }
     
     @objc private func keyboardWillHide(notification: NSNotification) {
-        submitButtonBottomConstraint?.constant = -20
-        
-        UIView.animate(withDuration: 0.3) {
-            self.view.layoutIfNeeded()
-        }
+        scrollView.setContentOffset(.zero, animated: true)
     }
     
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-        textField.resignFirstResponder()
+        switch textField {
+        case nameTextField:
+            emailTextField.becomeFirstResponder()
+        case emailTextField:
+            companyTextField.becomeFirstResponder()
+        case companyTextField:
+            inputTextField.becomeFirstResponder()
+        case inputTextField:
+            textField.resignFirstResponder()
+        default:
+            textField.resignFirstResponder()
+        }
         return true
+    }
+    
+    private func applyTextFieldStyles(to textField: UITextField) {
+        textField.textColor = .white
+        textField.font = UIFont.systemFont(ofSize: 17)
+        textField.backgroundColor = UIColor(red: 0.12, green: 0.12, blue: 0.14, alpha: 1.0)
+        textField.layer.cornerRadius = 12
+        textField.clipsToBounds = true
+        textField.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 0))
+        textField.leftViewMode = .always
+        textField.borderStyle = .none
+        
+        textField.attributedPlaceholder = NSAttributedString(
+            string: textField.placeholder ?? "",
+            attributes: [
+                NSAttributedString.Key.foregroundColor: UIColor.white.withAlphaComponent(0.4),
+                NSAttributedString.Key.font: UIFont.systemFont(ofSize: 17)
+            ]
+        )
+        
+        if textField == emailTextField {
+            textField.keyboardType = .emailAddress
+            textField.autocapitalizationType = .none
+        }
+        
+        if textField == inputTextField {
+            textField.placeholder = "Write your message here..."
+        }
     }
 }

@@ -4,7 +4,9 @@ import SwiftUI
 struct ARClip1App: App {
     var body: some Scene {
         WindowGroup {
-            ARContentView()  // AR Content view we will create
+            ARContentView()
+                .edgesIgnoringSafeArea(.all)
+                .statusBar(hidden: true)
         }
     }
 }

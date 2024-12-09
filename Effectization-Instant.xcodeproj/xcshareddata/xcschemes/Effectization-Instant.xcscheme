@@ -77,7 +77,7 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "_XCAppClipURL"
-            value = "https://appclip.effectizationstudio.com/app-clip/test&#10;"
+            value = "https://appclip.effectizationstudio.com/app-clip/test"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>

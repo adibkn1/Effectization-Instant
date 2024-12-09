@@ -1,16 +1,8 @@
-//
-//  SceneDelegate.swift
-//  QR Scanner
-//
-//  Created by Swarup Panda on 04/10/24.
-//
-
 import UIKit
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
-
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = (scene as? UIWindowScene) else { return }
@@ -19,36 +11,66 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.rootViewController = MainTabBarController()
         self.window = window
         window.makeKeyAndVisible()
+        
+        // Handle any Universal Link passed during launch
+        if let userActivity = connectionOptions.userActivities.first {
+            handleUserActivity(userActivity)
+        }
+    }
+
+    func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+        if let url = userActivity.webpageURL {
+            print("App Clip invoked with URL: \(url.absoluteString)")
+
+            // Handle App Clip logic based on the URL
+            if url.host == "appclip.effectizationstudio.com" && url.path.starts(with: "/app-clip") {
+                print("Launching App Clip experience for URL: \(url.absoluteString)")
+                // Add your App Clip-specific handling here
+            }
+        }
+    }
+
+
+    private func handleUserActivity(_ userActivity: NSUserActivity) {
+        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+              let url = userActivity.webpageURL else { return }
+
+        print("Incoming Universal Link: \(url.absoluteString)")
+
+        // Check if the Universal Link is for the App Clip
+        if url.host == "appclip.effectizationstudio.com" && url.path.starts(with: "/app-clip") {
+            // Open the App Clip or redirect appropriately
+            UIApplication.shared.open(url, options: [:]) { success in
+                if success {
+                    print("App Clip launched successfully.")
+                } else {
+                    print("Failed to launch App Clip.")
+                }
+            }
+        } else {
+            // Handle other links (e.g., main app navigation)
+            print("Handle main app navigation for the URL: \(url)")
+            // Example: Navigate to a specific screen in the main app
+        }
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
         // Called as the scene is being released by the system.
-        // This occurs shortly after the scene enters the background, or when its session is discarded.
-        // Release any resources associated with this scene that can be re-created the next time the scene connects.
-        // The scene may re-connect later, as its session was not necessarily discarded (see `application:didDiscardSceneSessions` instead).
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
-        // Called when the scene has moved from an inactive state to an active state.
-        // Use this method to restart any tasks that were paused (or not yet started) when the scene was inactive.
+        // Restart any tasks paused when the scene was inactive.
     }
 
     func sceneWillResignActive(_ scene: UIScene) {
-        // Called when the scene will move from an active state to an inactive state.
-        // This may occur due to temporary interruptions (ex. an incoming phone call).
+        // Called when the scene moves from active to inactive state.
     }
 
     func sceneWillEnterForeground(_ scene: UIScene) {
-        // Called as the scene transitions from the background to the foreground.
-        // Use this method to undo the changes made on entering the background.
+        // Undo changes made when entering the background.
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {
-        // Called as the scene transitions from the foreground to the background.
-        // Use this method to save data, release shared resources, and store enough scene-specific state information
-        // to restore the scene back to its current state.
+        // Save data and release shared resources when entering the background.
     }
-
-
 }
-

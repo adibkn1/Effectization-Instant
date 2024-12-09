@@ -6,6 +6,7 @@
 //
 
 import UIKit
+//import SwiftUI
 
 class MainTabBarController: UITabBarController {
     
@@ -24,15 +25,29 @@ class MainTabBarController: UITabBarController {
     
     private func setupViewControllers() {
         let homeVC = HomeViewController()
+        let qrVC = QRViewController()
         let formVC = FormViewController()
         
-        homeVC.tabBarItem = UITabBarItem(title: nil, image: UIImage(systemName: "globe"), tag: 0)
-        formVC.tabBarItem = UITabBarItem(title: nil, image: UIImage(systemName: "ellipsis.message"), tag: 1)
+        // Configure tab bar items with standard iOS size (20pt)
+        let configuration = UIImage.SymbolConfiguration(pointSize: 20, weight: .regular)
         
-        homeVC.tabBarItem.imageInsets = UIEdgeInsets(top: -10, left: 0, bottom: 100, right: 0)
-        formVC.tabBarItem.imageInsets = UIEdgeInsets(top: -10, left: 0, bottom: 100, right: 0)
+        homeVC.tabBarItem = UITabBarItem(
+            title: nil,
+            image: UIImage(systemName: "house.fill", withConfiguration: configuration),
+            tag: 0
+        )
+        qrVC.tabBarItem = UITabBarItem(
+            title: nil,
+            image: UIImage(systemName: "qrcode", withConfiguration: configuration),
+            tag: 1
+        )
+        formVC.tabBarItem = UITabBarItem(
+            title: nil,
+            image: UIImage(systemName: "envelope.fill", withConfiguration: configuration),
+            tag: 2
+        )
         
-        setViewControllers([homeVC, formVC], animated: false)
+        setViewControllers([homeVC, qrVC, formVC], animated: false)
         selectedIndex = 0
     }
     
@@ -42,10 +57,10 @@ class MainTabBarController: UITabBarController {
         
         customTabBar.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            customTabBar.centerXAnchor.constraint(equalTo: view.centerXAnchor), // Center horizontally
-            customTabBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor), // Align to the bottom
-            customTabBar.heightAnchor.constraint(equalToConstant: 60), // Set fixed height
-            customTabBar.widthAnchor.constraint(equalToConstant: 200) // Set fixed width
+            customTabBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            customTabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            customTabBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            customTabBar.heightAnchor.constraint(equalToConstant: 88) // Height including safe area
         ])
         
         customTabBar.items = viewControllers?.map { $0.tabBarItem }

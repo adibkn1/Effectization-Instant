@@ -28,6 +28,19 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        // Check camera permission first
+        AVCaptureDevice.requestAccess(for: .video) { granted in
+            DispatchQueue.main.async {
+                if granted {
+                    self.setupAR()
+                } else {
+                    self.showCameraPermissionAlert()
+                }
+            }
+        }
+    }
+
+    private func setupAR() {
         // Configure the AVAudioSession to play audio even when the iPhone is on silent mode
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
@@ -168,7 +181,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return planeNode
         }
 
-        return nil
+        return SCNNode() // Return empty node instead of nil if no plane node found
     }
 
     func playVideoOnNode() {
@@ -236,28 +249,24 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
            let placeholderImage = UIImage(contentsOfFile: imagePath) {
             overlayImageView = UIImageView(image: placeholderImage)
             overlayImageView.contentMode = .scaleAspectFit
-            overlayImageView.alpha = 0.5
+            overlayImageView.alpha = 0.8
             overlayImageView.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(overlayImageView)
-            print("Overlay image loaded.")
-        } else {
-            print("Image not found in ARClip1 resources")
         }
 
         overlayLabel = UILabel()
         overlayLabel.text = "Scan this image"
         overlayLabel.textColor = .white
         overlayLabel.textAlignment = .center
-        overlayLabel.font = UIFont.systemFont(ofSize: 18)
+        overlayLabel.font = UIFont.systemFont(ofSize: 17, weight: .medium)
         overlayLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(overlayLabel)
-        print("Overlay label added.")
 
         NSLayoutConstraint.activate([
             overlayImageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             overlayImageView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            overlayImageView.widthAnchor.constraint(equalToConstant: 400),
-            overlayImageView.heightAnchor.constraint(equalToConstant: 400),
+            overlayImageView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.7),
+            overlayImageView.heightAnchor.constraint(equalTo: overlayImageView.widthAnchor, multiplier: 0.5625),
 
             overlayLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             overlayLabel.topAnchor.constraint(equalTo: overlayImageView.bottomAnchor, constant: 20)
@@ -266,49 +275,64 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
     // Set up the button displayed after image detection
     func setupButton() {
+        // Create blur effect view with modern style
+        let blurEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
+        let blurView = UIVisualEffectView(effect: blurEffect)
+        blurView.translatesAutoresizingMaskIntoConstraints = false
+        blurView.layer.cornerRadius = 25
+        blurView.clipsToBounds = true
+        blurView.isHidden = true
+        
+        // Main button with modern styling
         actionButton = UIButton(type: .custom)
         actionButton.translatesAutoresizingMaskIntoConstraints = false
-        actionButton.backgroundColor = UIColor.systemYellow
-        actionButton.layer.cornerRadius = 32
+        actionButton.backgroundColor = UIColor(red: 0.11, green: 0.11, blue: 0.118, alpha: 1)
+        actionButton.layer.cornerRadius = 25
         actionButton.clipsToBounds = true
-
-        let arrowImageView = UIImageView(image: UIImage(named: "arrow"))
+        actionButton.isHidden = true
+        
+        // Modern arrow icon
+        let arrowConfig = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
+        let arrowImage = UIImage(systemName: "arrow.right.circle.fill", withConfiguration: arrowConfig)?.withRenderingMode(.alwaysTemplate)
+        let arrowImageView = UIImageView(image: arrowImage)
         arrowImageView.translatesAutoresizingMaskIntoConstraints = false
         arrowImageView.contentMode = .scaleAspectFit
+        arrowImageView.tintColor = .white
 
         let label = UILabel()
-        label.text = "More info"
-        label.textColor = .black
-        label.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+        label.text = "Book a Ride"
+        label.textColor = .white
+        label.font = UIFont.systemFont(ofSize: 17, weight: .medium)
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
 
+        // Add views
+        view.addSubview(blurView)
+        view.addSubview(actionButton)
         actionButton.addSubview(arrowImageView)
         actionButton.addSubview(label)
-        view.addSubview(actionButton)
 
         NSLayoutConstraint.activate([
+            blurView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            blurView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            blurView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.9),
+            blurView.heightAnchor.constraint(equalToConstant: 50),
+
             actionButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            actionButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -30),
-            actionButton.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.8),
-            actionButton.heightAnchor.constraint(equalToConstant: 64)
-        ])
+            actionButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            actionButton.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.9),
+            actionButton.heightAnchor.constraint(equalToConstant: 50),
 
-        NSLayoutConstraint.activate([
-            arrowImageView.leadingAnchor.constraint(equalTo: actionButton.leadingAnchor, constant: 15),
-            arrowImageView.centerYAnchor.constraint(equalTo: actionButton.centerYAnchor),
-            arrowImageView.widthAnchor.constraint(equalToConstant: 30),
-            arrowImageView.heightAnchor.constraint(equalToConstant: 30)
-        ])
-
-        NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: arrowImageView.trailingAnchor, constant: 10),
+            label.centerXAnchor.constraint(equalTo: actionButton.centerXAnchor),
             label.centerYAnchor.constraint(equalTo: actionButton.centerYAnchor),
-            label.trailingAnchor.constraint(equalTo: actionButton.trailingAnchor, constant: -10)
+            
+            arrowImageView.centerYAnchor.constraint(equalTo: actionButton.centerYAnchor),
+            arrowImageView.trailingAnchor.constraint(equalTo: actionButton.trailingAnchor, constant: -16),
+            arrowImageView.widthAnchor.constraint(equalToConstant: 24),
+            arrowImageView.heightAnchor.constraint(equalToConstant: 24)
         ])
 
         actionButton.addTarget(self, action: #selector(buttonTapped), for: .touchUpInside)
-        actionButton.isHidden = true
     }
 
     // Action performed when the button is tapped
@@ -320,67 +344,86 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     }
 
     // Set up the loading indicator
-        func setupLoadingIndicator() {
-            loadingIndicator = UIActivityIndicatorView(style: .large)
-            loadingIndicator.color = .white
-            loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
-            loadingIndicator.hidesWhenStopped = true
-            view.addSubview(loadingIndicator)
+    func setupLoadingIndicator() {
+        loadingIndicator = UIActivityIndicatorView(style: .large)
+        loadingIndicator.color = .white
+        loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
+        loadingIndicator.hidesWhenStopped = true
+        view.addSubview(loadingIndicator)
 
-            NSLayoutConstraint.activate([
-                loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-                loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
-            ])
-        }
+        NSLayoutConstraint.activate([
+            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
+    }
 
     // Set up the loading label
-        func setupLoadingLabel() {
-            loadingLabel = UILabel()
-            loadingLabel.text = "Preparing your experience"
-            loadingLabel.textColor = .white
-            loadingLabel.textAlignment = .center
-            loadingLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
-            loadingLabel.translatesAutoresizingMaskIntoConstraints = false
-            loadingLabel.isHidden = true
-            view.addSubview(loadingLabel)
+    func setupLoadingLabel() {
+        loadingLabel = UILabel()
+        loadingLabel.text = "Preparing your experience"
+        loadingLabel.textColor = .white
+        loadingLabel.textAlignment = .center
+        loadingLabel.font = UIFont.systemFont(ofSize: 17, weight: .regular)
+        loadingLabel.translatesAutoresizingMaskIntoConstraints = false
+        loadingLabel.isHidden = true
+        view.addSubview(loadingLabel)
 
-            NSLayoutConstraint.activate([
-                loadingLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-                loadingLabel.topAnchor.constraint(equalTo: loadingIndicator.bottomAnchor, constant: 10)
-            ])
-        }
+        NSLayoutConstraint.activate([
+            loadingLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            loadingLabel.topAnchor.constraint(equalTo: loadingIndicator.bottomAnchor, constant: 16)
+        ])
+    }
 
-        func showLoadingAnimation() {
-            loadingLabel.isHidden = false
-            loadingIndicator.startAnimating()
-        }
+    func showLoadingAnimation() {
+        loadingLabel.isHidden = false
+        loadingIndicator.startAnimating()
+    }
 
-        func hideLoadingAnimation() {
-            loadingLabel.isHidden = true
-            loadingIndicator.stopAnimating()
-        }
+    func hideLoadingAnimation() {
+        loadingLabel.isHidden = true
+        loadingIndicator.stopAnimating()
+    }
 
-        // Hide the overlay (used when the image is detected)
-        func hideOverlay() {
-            overlayImageView.isHidden = true
-            overlayLabel.isHidden = true
-            print("Overlay hidden.")
-        }
+    // Hide the overlay (used when the image is detected)
+    func hideOverlay() {
+        overlayImageView.isHidden = true
+        overlayLabel.isHidden = true
+        print("Overlay hidden.")
+    }
 
-        // Show the overlay (used when the image is lost)
-        func showOverlay() {
-            DispatchQueue.main.async {
-                self.overlayImageView.isHidden = false
-                self.overlayLabel.isHidden = false
-                print("Overlay shown.")
-            }
-        }
-
-        // Show the button with a delay after the image is detected
-        func showButtonWithDelay() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                self.actionButton.isHidden = false
-                print("Button displayed after delay.")
-            }
+    // Show the overlay (used when the image is lost)
+    func showOverlay() {
+        DispatchQueue.main.async {
+            self.overlayImageView.isHidden = false
+            self.overlayLabel.isHidden = false
+            print("Overlay shown.")
         }
     }
+
+    // Show the button with a delay after the image is detected
+    func showButtonWithDelay() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            self.actionButton.isHidden = false
+            print("Button displayed after delay.")
+        }
+    }
+
+    private func showCameraPermissionAlert() {
+        let alert = UIAlertController(
+            title: "Camera Access Required",
+            message: "Please allow camera access to use AR features",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Open Settings", style: .default) { _ in
+            if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(settingsURL)
+            }
+        })
+        
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+}
+

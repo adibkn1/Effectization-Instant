@@ -20,37 +20,46 @@ class CustomTabBar: UITabBar {
     }
     
     private func setupTabBar() {
-        backgroundColor = .black
+        // Set background color to match theme
+        backgroundColor = UIColor(red: 0.06, green: 0.06, blue: 0.1, alpha: 0.95)
         
+        // Remove default border
         backgroundImage = UIImage()
         shadowImage = UIImage()
         
-        layer.cornerRadius = 30
+        // Remove corner radius for full-width design
+        layer.cornerRadius = 0
         layer.masksToBounds = true
-        layer.borderWidth = 2
-        layer.borderColor = UIColor.clear.cgColor
         
-        let normalAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.systemFont(ofSize: 10),
-            .foregroundColor: UIColor.white
-        ]
-
-        let selectedAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.systemFont(ofSize: 10),
-            .foregroundColor: UIColor.yellow
-        ]
-
+        // Add blur effect
+        let blurEffect = UIBlurEffect(style: .dark)
+        let blurView = UIVisualEffectView(effect: blurEffect)
+        blurView.frame = bounds
+        blurView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        insertSubview(blurView, at: 0)
+        
+        // Add subtle top border
+        let topBorder = UIView()
+        topBorder.backgroundColor = UIColor.white.withAlphaComponent(0.1)
+        topBorder.frame = CGRect(x: 0, y: 0, width: bounds.width, height: 0.5)
+        topBorder.autoresizingMask = [.flexibleWidth]
+        addSubview(topBorder)
+        
+        // Configure appearance
         let appearance = UITabBarAppearance()
+        appearance.configureWithTransparentBackground()
         
-        appearance.stackedLayoutAppearance.normal.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: -5)
-        appearance.stackedLayoutAppearance.selected.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: -5)
+        // Normal state
+        appearance.stackedLayoutAppearance.normal.iconColor = UIColor.white.withAlphaComponent(0.6)
         
-        appearance.stackedLayoutAppearance.selected.iconColor = .yellow
-        appearance.stackedLayoutAppearance.normal.titleTextAttributes = normalAttributes
-        appearance.stackedLayoutAppearance.selected.titleTextAttributes = selectedAttributes
+        // Selected state - using theme blue color
+        appearance.stackedLayoutAppearance.selected.iconColor = UIColor(red: 0.4, green: 0.8, blue: 1.0, alpha: 1.0)
         
         standardAppearance = appearance
         scrollEdgeAppearance = appearance
+        
+        // Adjust item positioning
+        itemPositioning = .centered
+        itemSpacing = 80 // Increased spacing between items
     }
 }
-
