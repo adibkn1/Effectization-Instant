@@ -352,7 +352,7 @@ class HomeViewController: UIViewController, UIScrollViewDelegate {
             videoContainer.topAnchor.constraint(equalTo: featuresContainerView.bottomAnchor, constant: 32),
             videoContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             videoContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            videoContainer.heightAnchor.constraint(equalToConstant: 450),
+            videoContainer.heightAnchor.constraint(equalToConstant: 500),
             
             videoContainerView.topAnchor.constraint(equalTo: videoContainer.topAnchor),
             videoContainerView.leadingAnchor.constraint(equalTo: videoContainer.leadingAnchor),
@@ -360,35 +360,107 @@ class HomeViewController: UIViewController, UIScrollViewDelegate {
             videoContainerView.bottomAnchor.constraint(equalTo: videoContainer.bottomAnchor)
         ])
 
+        // Add loading indicator
+        let loadingIndicator = UIActivityIndicatorView(style: .large)
+        loadingIndicator.color = .white
+        loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
+        videoContainer.addSubview(loadingIndicator)
+        
+        NSLayoutConstraint.activate([
+            loadingIndicator.centerXAnchor.constraint(equalTo: videoContainer.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: videoContainer.centerYAnchor)
+        ])
+        
+        loadingIndicator.startAnimating()
+
+        // Configure audio session first
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("Failed to set audio session category: \(error)")
+        }
+
         guard let videoURL = URL(string: "https://github.com/adibkn1/FlappyBird/raw/refs/heads/main/igloo.mp4") else {
             print("Invalid video URL")
             return
         }
 
-        let playerItem = AVPlayerItem(url: videoURL)
-        player = AVPlayer(playerItem: playerItem)
+        // Create asset options for better loading
+        let assetOptions = [AVURLAssetPreferPreciseDurationAndTimingKey: true]
+        let asset = AVURLAsset(url: videoURL, options: assetOptions)
         
-        // Configure audio session
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: .mixWithOthers)
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            print("Failed to set audio session category: \(error)")
+        if #available(iOS 16.0, *) {
+            Task {
+                do {
+                    let isPlayable = try await asset.load(.isPlayable)
+                    guard isPlayable else {
+                        await MainActor.run {
+                            print("Asset is not playable")
+                            loadingIndicator.stopAnimating()
+                            handleVideoError()
+                        }
+                        return
+                    }
+                    
+                    await MainActor.run {
+                        setupPlayerWithAsset(asset, loadingIndicator: loadingIndicator)
+                    }
+                } catch {
+                    await MainActor.run {
+                        print("Failed to load video asset: \(error.localizedDescription)")
+                        loadingIndicator.stopAnimating()
+                        handleVideoError()
+                    }
+                }
+            }
+        } else {
+            // Fallback for iOS 15 and earlier
+            asset.loadValuesAsynchronously(forKeys: ["playable"]) { [weak self] in
+                DispatchQueue.main.async {
+                    self?.setupPlayerWithAsset(asset, loadingIndicator: loadingIndicator)
+                }
+            }
+        }
+    }
+    
+    private func setupPlayerWithAsset(_ asset: AVURLAsset, loadingIndicator: UIActivityIndicatorView) {
+        let playerItem = AVPlayerItem(asset: asset)
+        self.player = AVPlayer(playerItem: playerItem)
+        self.player?.isMuted = true
+        
+        self.playerLayer = AVPlayerLayer(player: self.player)
+        self.playerLayer?.videoGravity = .resizeAspectFill
+        self.playerLayer?.frame = self.videoContainerView.bounds
+        
+        if let playerLayer = self.playerLayer {
+            self.videoContainerView.layer.addSublayer(playerLayer)
         }
         
-        player?.isMuted = true
-
-        playerLayer = AVPlayerLayer(player: player)
-        playerLayer?.videoGravity = .resizeAspectFill
-        playerLayer?.frame = videoContainerView.bounds
-        videoContainerView.layer.addSublayer(playerLayer!)
-
-        player?.addObserver(self, forKeyPath: "status", options: [.new, .initial], context: nil)
-
+        // Add observers after successful loading
+        self.addPlayerObservers()
+        self.player?.play()
+        loadingIndicator.stopAnimating()
+    }
+    
+    private func addPlayerObservers() {
+        // Add observer for item status
+        player?.currentItem?.addObserver(self, forKeyPath: "status", options: [.new, .initial], context: nil)
+        
         NotificationCenter.default.addObserver(self,
-                                               selector: #selector(replayVideo),
-                                               name: .AVPlayerItemDidPlayToEndTime,
-                                               object: player?.currentItem)
+                                             selector: #selector(replayVideo),
+                                             name: .AVPlayerItemDidPlayToEndTime,
+                                             object: player?.currentItem)
+                                             
+        NotificationCenter.default.addObserver(self,
+                                             selector: #selector(handleEnterBackground),
+                                             name: UIApplication.didEnterBackgroundNotification,
+                                             object: nil)
+                                             
+        NotificationCenter.default.addObserver(self,
+                                             selector: #selector(handleEnterForeground),
+                                             name: UIApplication.willEnterForegroundNotification,
+                                             object: nil)
     }
 
     override func viewDidLayoutSubviews() {
@@ -397,23 +469,56 @@ class HomeViewController: UIViewController, UIScrollViewDelegate {
     }
 
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        if keyPath == "status", let player = player {
-            if player.status == .readyToPlay {
-                player.play()
-            } else if player.status == .failed {
-                print("Player failed: \(player.error?.localizedDescription ?? "Unknown error")")
+        if keyPath == "status" {
+            if let player = object as? AVPlayer {
+                handlePlayerStatus(player)
+            } else if let playerItem = object as? AVPlayerItem {
+                handlePlayerItemStatus(playerItem)
             }
         }
     }
-
-    @objc func replayVideo() {
-        player?.seek(to: .zero)
+    
+    private func handlePlayerStatus(_ player: AVPlayer) {
+        DispatchQueue.main.async {
+            if player.status == .readyToPlay {
+                player.play()
+            } else if player.status == .failed {
+                print("Player failed: \(String(describing: player.error?.localizedDescription))")
+                self.handleVideoError()
+            }
+        }
+    }
+    
+    private func handlePlayerItemStatus(_ playerItem: AVPlayerItem) {
+        DispatchQueue.main.async {
+            if playerItem.status == .failed {
+                print("PlayerItem failed: \(String(describing: playerItem.error?.localizedDescription))")
+                self.handleVideoError()
+            }
+        }
+    }
+    
+    private func handleVideoError() {
+        // Implement retry logic or show error UI
+        print("Video playback error occurred")
+    }
+    
+    @objc private func handleEnterBackground() {
+        player?.pause()
+    }
+    
+    @objc private func handleEnterForeground() {
         player?.play()
     }
 
     deinit {
         NotificationCenter.default.removeObserver(self)
-        player?.removeObserver(self, forKeyPath: "status")
+        if let player = player {
+            player.removeObserver(self, forKeyPath: "status")
+        }
+        if let playerItem = player?.currentItem {
+            playerItem.removeObserver(self, forKeyPath: "status")
+        }
     }
 
     
@@ -430,7 +535,7 @@ class HomeViewController: UIViewController, UIScrollViewDelegate {
         label1.textColor = .white
         label1.textAlignment = .left
         label1.numberOfLines = 2
-        label1.font = UIFont.systemFont(ofSize: 34, weight: .regular)
+        label1.font = UIFont.systemFont(ofSize: 32, weight: .regular)
         label1.translatesAutoresizingMaskIntoConstraints = false
         endingContainer.addSubview(label1)
         
@@ -532,6 +637,11 @@ class HomeViewController: UIViewController, UIScrollViewDelegate {
             circle2.transform = CGAffineTransform(translationX: 0, y: -10)
             rect1.transform = CGAffineTransform(rotationAngle: .pi / 4)
         })
+    }
+
+    @objc func replayVideo() {
+        player?.seek(to: .zero)
+        player?.play()
     }
 }
 
