@@ -130,58 +130,58 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 self.hideOverlay()
 
                 if self.isVideoReady {
-                    // Video is ready, start playing
                     self.playVideoOnNode()
                 } else {
-                    // Video is not ready, show loading animation
                     self.showLoadingAnimation()
                 }
                 self.showButtonWithDelay()
             }
         }
 
-        // Load the scene asset and find the video plane node
-        let scene = SCNScene(named: "art.scnassets/videoScene.scn")!
-        if let planeNode = scene.rootNode.childNode(withName: "videoPlane", recursively: true),
-           let videoNode = planeNode.childNode(withName: "video", recursively: true) {
-
-            planeNode.opacity = 0.0 // Initial opacity for fade-in effect
-
-            if let videoPlayer = videoPlayer {
-                let videoMaterial = SCNMaterial()
-                videoMaterial.diffuse.contents = videoPlayer
-                videoMaterial.isDoubleSided = true
-                videoNode.geometry?.materials = [videoMaterial]
-
-                // Observer to loop the video playback
-                NotificationCenter.default.addObserver(
-                    forName: .AVPlayerItemDidPlayToEndTime,
-                    object: videoPlayer.currentItem,
-                    queue: .main
-                ) { _ in
-                    videoPlayer.seek(to: .zero)
-                    videoPlayer.play()
-                    print("Video restarted for loop.")
-                }
-
-                // Fade-in animation for the video plane
-                SCNTransaction.begin()
-                SCNTransaction.animationDuration = 1.5
-                SCNTransaction.completionBlock = {
-                    videoPlayer.play()
-                    DispatchQueue.main.async {
-                        self.hideLoadingAnimation() // Hide loading animation when video starts
-                    }
-                    print("Video started playing.")
-                }
-                planeNode.opacity = 1.0 // Fade to full opacity
-                SCNTransaction.commit()
-            }
-
-            return planeNode
+        // Create an empty node as fallback
+        let rootNode = SCNNode()
+        
+        // Safely load the scene
+        guard let scene = SCNScene(named: "art.scnassets/videoScene.scn"),
+              let planeNode = scene.rootNode.childNode(withName: "videoPlane", recursively: true),
+              let videoNode = planeNode.childNode(withName: "video", recursively: true) else {
+            print("Failed to load scene or find required nodes")
+            return rootNode
         }
 
-        return SCNNode() // Return empty node instead of nil if no plane node found
+        planeNode.opacity = 0.0
+
+        if let videoPlayer = videoPlayer {
+            let videoMaterial = SCNMaterial()
+            videoMaterial.diffuse.contents = videoPlayer
+            videoMaterial.isDoubleSided = true
+            videoNode.geometry?.materials = [videoMaterial]
+
+            NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemDidPlayToEndTime,
+                object: videoPlayer.currentItem,
+                queue: .main
+            ) { _ in
+                videoPlayer.seek(to: .zero)
+                videoPlayer.play()
+                print("Video restarted for loop.")
+            }
+
+            SCNTransaction.begin()
+            SCNTransaction.animationDuration = 1.5
+            SCNTransaction.completionBlock = {
+                videoPlayer.play()
+                DispatchQueue.main.async {
+                    self.hideLoadingAnimation()
+                }
+                print("Video started playing.")
+            }
+            planeNode.opacity = 1.0
+            SCNTransaction.commit()
+        }
+
+        rootNode.addChildNode(planeNode)
+        return rootNode
     }
 
     func playVideoOnNode() {
