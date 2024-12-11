@@ -67,7 +67,6 @@
 				ARContentView.swift,
 				Assets.xcassets,
 				ContentView.swift,
-				image.png,
 			);
 			target = B21238592CAC18AB0087BCBE /* Effectization-Instant */;
 		};

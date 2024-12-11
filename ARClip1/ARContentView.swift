@@ -14,11 +14,17 @@ struct ARContentView: UIViewControllerRepresentable {
 }
 
 class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
+    // MARK: - URLs
+    private let targetImageURL = "https://github.com/adibkn1/FlappyBird/blob/main/image.png?raw=true"
+    private let videoURL = "https://github.com/adibkn1/FlappyBird/raw/refs/heads/main/113.mp4"
+    
+    // MARK: - Properties
     var sceneView: ARSCNView!
-    var videoPlayer: AVPlayer? // Class-level video player instance
-    var isVideoReady = false // Indicates if the video is ready
-    var isImageTracked = false  // Tracks if the image is currently being detected
-
+    var videoPlayer: AVPlayer?
+    var isVideoReady = false
+    var isImageTracked = false
+    private var referenceImage: ARReferenceImage?
+    
     var overlayImageView: UIImageView!
     var overlayLabel: UILabel!
     var actionButton: UIButton!
@@ -88,16 +94,14 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     // Preload the video in the background when the app opens
     func preloadVideo() {
         DispatchQueue.global().async {
-            let videoURLString = "https://github.com/adibkn1/FlappyBird/raw/refs/heads/main/113.mp4" // Replace with your actual video URL
-            guard let videoURL = URL(string: videoURLString) else {
+            guard let videoURL = URL(string: self.videoURL) else {
                 print("Invalid video URL.")
                 return
             }
 
             let videoPlayer = AVPlayer(url: videoURL)
-            videoPlayer.volume = 1.0 // Ensure audio is active
+            videoPlayer.volume = 1.0
 
-            // Notify the main thread when the video is ready
             DispatchQueue.main.async {
                 self.videoPlayer = videoPlayer
                 self.isVideoReady = true
@@ -107,13 +111,67 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     }
 
     func runARSession() {
-        let configuration = ARImageTrackingConfiguration()
-        if let referenceImages = ARReferenceImage.referenceImages(inGroupNamed: "AR Resources", bundle: nil) {
-            configuration.trackingImages = referenceImages
-            configuration.maximumNumberOfTrackedImages = 1 // Adjust as needed
+        guard ARImageTrackingConfiguration.isSupported else {
+            print("AR Image tracking is not supported on this device")
+            return
         }
-        sceneView.session.run(configuration)
-        print("AR session running with image tracking configuration.")
+        
+        // Show loading state immediately
+        DispatchQueue.main.async {
+            self.showLoadingAnimation()
+            self.loadingLabel.text = "Preparing your experience"
+        }
+        
+        // Load reference image first, then start AR session
+        loadReferenceImage { [weak self] success in
+            guard let self = self else { return }
+            
+            let configuration = ARImageTrackingConfiguration()
+            
+            if success, let referenceImage = self.referenceImage {
+                configuration.trackingImages = [referenceImage]
+                configuration.maximumNumberOfTrackedImages = 1
+                self.sceneView.session.run(configuration)
+                
+                // Hide loading message after reference image is loaded
+                DispatchQueue.main.async {
+                    self.hideLoadingAnimation()
+                }
+                
+                print("AR session running with downloaded reference image")
+            }
+        }
+    }
+
+    private func loadReferenceImage(completion: @escaping (Bool) -> Void) {
+        guard let imageURL = URL(string: targetImageURL) else {
+            print("Invalid image URL")
+            completion(false)
+            return
+        }
+        
+        URLSession.shared.dataTask(with: imageURL) { [weak self] data, response, error in
+            guard let self = self,
+                  let data = data,
+                  let uiImage = UIImage(data: data),
+                  let cgImage = uiImage.cgImage else {
+                print("Failed to load image: \(error?.localizedDescription ?? "Unknown error")")
+                completion(false)
+                return
+            }
+            
+            // Create reference image with physical width of 2 meters
+            let refImage = ARReferenceImage(cgImage, orientation: .up, physicalWidth: 30.0)
+            refImage.name = "targetImage"
+            self.referenceImage = refImage
+            
+            // Also update the overlay image on the main thread
+            DispatchQueue.main.async {
+                self.overlayImageView.image = uiImage
+            }
+            
+            completion(true)
+        }.resume()
     }
 
     func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
@@ -245,13 +303,22 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
     // Set up the overlay image and label displayed initially
     func setupOverlay() {
-        if let imagePath = Bundle.main.path(forResource: "image", ofType: "png"),
-           let placeholderImage = UIImage(contentsOfFile: imagePath) {
-            overlayImageView = UIImageView(image: placeholderImage)
-            overlayImageView.contentMode = .scaleAspectFit
-            overlayImageView.alpha = 0.8
-            overlayImageView.translatesAutoresizingMaskIntoConstraints = false
-            view.addSubview(overlayImageView)
+        // Create overlay image view without initial image
+        overlayImageView = UIImageView()
+        overlayImageView.contentMode = .scaleAspectFit
+        overlayImageView.alpha = 0.8
+        overlayImageView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(overlayImageView)
+        
+        // Download and set the overlay image
+        if let imageURL = URL(string: targetImageURL) {
+            URLSession.shared.dataTask(with: imageURL) { [weak self] data, response, error in
+                if let data = data, let image = UIImage(data: data) {
+                    DispatchQueue.main.async {
+                        self?.overlayImageView.image = image
+                    }
+                }
+            }.resume()
         }
 
         overlayLabel = UILabel()
@@ -266,7 +333,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             overlayImageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             overlayImageView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             overlayImageView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.7),
-            overlayImageView.heightAnchor.constraint(equalTo: overlayImageView.widthAnchor, multiplier: 0.5625),
+            overlayImageView.heightAnchor.constraint(equalTo: overlayImageView.widthAnchor, multiplier: 1.5), // Adjusted for 2:3 aspect ratio
 
             overlayLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             overlayLabel.topAnchor.constraint(equalTo: overlayImageView.bottomAnchor, constant: 20)
