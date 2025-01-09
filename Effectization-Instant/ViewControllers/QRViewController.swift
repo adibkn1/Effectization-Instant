@@ -15,11 +15,16 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
     var previewLayer: AVCaptureVideoPreviewLayer!
     var scannerFrame: UIView!
     
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        
-        self.hidesBottomBarWhenPushed = false
+    override func loadView() {
+        super.loadView()
+        view.backgroundColor = .black
+        setupCamera()
+    }
+    
+    private func setupCamera() {
+        // Initialize capture session
         captureSession = AVCaptureSession()
+        captureSession.beginConfiguration()
         
         // Set up the video input (camera)
         guard let videoCaptureDevice = AVCaptureDevice.default(for: .video) else {
@@ -55,18 +60,70 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
             return
         }
         
+        captureSession.commitConfiguration()
+        
         // Set up the preview layer to display the camera feed
         previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
         previewLayer.frame = view.layer.bounds
         previewLayer.videoGravity = .resizeAspectFill
         view.layer.addSublayer(previewLayer)
         
-        // Add the overlay for the QR scanner
-        addScannerOverlay()
-        
         // Start the session on a background thread
-        DispatchQueue.global(qos: .userInitiated).async {
-            self.captureSession.startRunning()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.captureSession.startRunning()
+        }
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        self.hidesBottomBarWhenPushed = false
+        addScannerOverlay()
+    }
+    
+    override func viewWillLayoutSubviews() {
+        super.viewWillLayoutSubviews()
+        previewLayer?.frame = view.layer.bounds
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        // Set initial alpha to 0
+        previewLayer?.opacity = 0
+        
+        if captureSession?.isRunning == false {
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                self?.captureSession?.startRunning()
+                // Once camera starts, fade in the preview layer
+                DispatchQueue.main.async {
+                    CATransaction.begin()
+                    CATransaction.setAnimationDuration(0.3)
+                    self?.previewLayer?.opacity = 1.0
+                    CATransaction.commit()
+                }
+            }
+        } else {
+            // If session is already running, just fade in the preview layer
+            CATransaction.begin()
+            CATransaction.setAnimationDuration(0.3)
+            previewLayer?.opacity = 1.0
+            CATransaction.commit()
+        }
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        
+        // Fade out before stopping the session
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(0.2)
+        previewLayer?.opacity = 0
+        CATransaction.commit()
+        
+        if captureSession?.isRunning == true {
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                self?.captureSession?.stopRunning()
+            }
         }
     }
     
@@ -111,27 +168,6 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
                 self.startScannerAnimation()
             })
         })
-    }
-    
-    // Restart session when the view appears
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        
-        DispatchQueue.global(qos: .userInitiated).async {
-            if self.captureSession?.isRunning == false {
-                self.captureSession.startRunning()
-            }
-        }
-    }
-    
-    // Stop session when the view disappears
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        if captureSession?.isRunning == true {
-            captureSession.stopRunning()
-        }
-        captureSession = nil // Release resources
-        print("QR scanner resources released.")
     }
 
     // Delegate method for metadata output (QR code detection)

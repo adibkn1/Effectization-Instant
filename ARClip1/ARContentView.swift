@@ -28,22 +28,12 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     var overlayImageView: UIImageView!
     var overlayLabel: UILabel!
     var actionButton: UIButton!
-    var loadingIndicator: UIActivityIndicatorView!
-    var loadingLabel: UILabel!
+    var loadingIndicator: UIActivityIndicatorView?
+    var loadingLabel: UILabel?
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        // Check camera permission first
-        AVCaptureDevice.requestAccess(for: .video) { granted in
-            DispatchQueue.main.async {
-                if granted {
-                    self.setupAR()
-                } else {
-                    self.showCameraPermissionAlert()
-                }
-            }
-        }
+        setupAR()  // Make sure this is called first
     }
 
     private func setupAR() {
@@ -60,11 +50,11 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         sceneView = ARSCNView(frame: self.view.bounds)
         sceneView.delegate = self
         sceneView.session.delegate = self
-        sceneView.scene = SCNScene() // Start with an empty scene
-
-        // Add ARSCNView to the main view
         view.addSubview(sceneView)
-
+        
+        // Setup video gestures after sceneView is initialized
+        setupVideoGestures()
+        
         // Set up the initial overlay, button, and loading elements
         setupOverlay()
         setupButton()
@@ -119,26 +109,37 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         // Show loading state immediately
         DispatchQueue.main.async {
             self.showLoadingAnimation()
-            self.loadingLabel.text = "Preparing your experience"
+            self.loadingLabel?.text = "Preparing your experience"
         }
         
-        // Load reference image first, then start AR session
+        // Start AR session immediately with empty configuration to show camera feed
+        let initialConfig = ARImageTrackingConfiguration()
+        initialConfig.maximumNumberOfTrackedImages = 1
+        initialConfig.isAutoFocusEnabled = true  // Enable auto focus for better frame capture
+        
+        // Run with proper initialization options
+        self.sceneView.session.run(initialConfig, options: [.resetTracking, .removeExistingAnchors])
+        print("Started initial AR session with camera feed")
+        
+        // Load reference image in parallel
         loadReferenceImage { [weak self] success in
             guard let self = self else { return }
             
-            let configuration = ARImageTrackingConfiguration()
-            
             if success, let referenceImage = self.referenceImage {
-                configuration.trackingImages = [referenceImage]
-                configuration.maximumNumberOfTrackedImages = 1
-                self.sceneView.session.run(configuration)
+                // Update configuration with the loaded reference image
+                let updatedConfig = ARImageTrackingConfiguration()
+                updatedConfig.trackingImages = [referenceImage]
+                updatedConfig.maximumNumberOfTrackedImages = 1
+                
+                // Update the session configuration
+                self.sceneView.session.run(updatedConfig, options: [.removeExistingAnchors])
                 
                 // Hide loading message after reference image is loaded
                 DispatchQueue.main.async {
                     self.hideLoadingAnimation()
                 }
                 
-                print("AR session running with downloaded reference image")
+                print("Updated AR session with downloaded reference image")
             }
         }
     }
@@ -411,44 +412,39 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     }
 
     // Set up the loading indicator
-    func setupLoadingIndicator() {
+    private func setupLoadingIndicator() {
         loadingIndicator = UIActivityIndicatorView(style: .large)
-        loadingIndicator.color = .white
-        loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
-        loadingIndicator.hidesWhenStopped = true
-        view.addSubview(loadingIndicator)
-
-        NSLayoutConstraint.activate([
-            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
-        ])
+        loadingIndicator?.center = view.center
+        loadingIndicator?.hidesWhenStopped = true
+        if let loadingIndicator = loadingIndicator {
+            view.addSubview(loadingIndicator)
+        }
     }
 
     // Set up the loading label
-    func setupLoadingLabel() {
+    private func setupLoadingLabel() {
         loadingLabel = UILabel()
-        loadingLabel.text = "Preparing your experience"
-        loadingLabel.textColor = .white
-        loadingLabel.textAlignment = .center
-        loadingLabel.font = UIFont.systemFont(ofSize: 17, weight: .regular)
-        loadingLabel.translatesAutoresizingMaskIntoConstraints = false
-        loadingLabel.isHidden = true
-        view.addSubview(loadingLabel)
-
-        NSLayoutConstraint.activate([
-            loadingLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            loadingLabel.topAnchor.constraint(equalTo: loadingIndicator.bottomAnchor, constant: 16)
-        ])
+        loadingLabel?.textColor = .white
+        loadingLabel?.textAlignment = .center
+        loadingLabel?.font = UIFont.systemFont(ofSize: 17, weight: .regular)
+        loadingLabel?.translatesAutoresizingMaskIntoConstraints = false
+        if let loadingLabel = loadingLabel {
+            view.addSubview(loadingLabel)
+            NSLayoutConstraint.activate([
+                loadingLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                loadingLabel.topAnchor.constraint(equalTo: loadingIndicator?.bottomAnchor ?? view.centerYAnchor, constant: 16)
+            ])
+        }
     }
 
     func showLoadingAnimation() {
-        loadingLabel.isHidden = false
-        loadingIndicator.startAnimating()
+        loadingLabel?.isHidden = false
+        loadingIndicator?.startAnimating()
     }
 
     func hideLoadingAnimation() {
-        loadingLabel.isHidden = true
-        loadingIndicator.stopAnimating()
+        loadingLabel?.isHidden = true
+        loadingIndicator?.stopAnimating()
     }
 
     // Hide the overlay (used when the image is detected)
@@ -491,6 +487,47 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         
         present(alert, animated: true)
+    }
+
+    private func setupVideoGestures() {
+        guard let sceneView = self.sceneView else {
+            print("Scene view not initialized")
+            return
+        }
+        
+        // Single tap gesture
+        let singleTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleSingleTap))
+        singleTapGesture.numberOfTapsRequired = 1
+        
+        // Double tap gesture
+        let doubleTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap))
+        doubleTapGesture.numberOfTapsRequired = 2
+        
+        singleTapGesture.require(toFail: doubleTapGesture)
+        
+        sceneView.addGestureRecognizer(singleTapGesture)
+        sceneView.addGestureRecognizer(doubleTapGesture)
+        sceneView.isUserInteractionEnabled = true
+    }
+    
+    @objc private func handleSingleTap(_ gesture: UITapGestureRecognizer) {
+        if let player = self.videoPlayer {
+            if player.rate == 0 {
+                player.play()
+                print("Video resumed playing")
+            } else {
+                player.pause()
+                print("Video paused")
+            }
+        }
+    }
+    
+    @objc private func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
+        if let player = self.videoPlayer {
+            player.seek(to: .zero)
+            player.play()
+            print("Video restarted from beginning")
+        }
     }
 }
 
