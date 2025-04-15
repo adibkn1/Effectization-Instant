@@ -116,29 +116,43 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
         
-        // Show loading state immediately
+        // Ensure sceneView is initialized
+        guard let sceneView = self.sceneView else {
+            print("ARSCNView not initialized")
+            return
+        }
+        
+        // Start basic AR session immediately to show camera feed
+        let initialConfiguration = ARImageTrackingConfiguration()
+        sceneView.session.run(initialConfiguration)
+        
+        // Show loading state while keeping camera feed visible
         DispatchQueue.main.async {
             self.showLoadingAnimation()
             self.loadingLabel.text = "Preparing your experience"
+            // Make sure loading elements are on top of the camera feed
+            self.view.bringSubviewToFront(self.loadingIndicator)
+            self.view.bringSubviewToFront(self.loadingLabel)
         }
         
-        // Load reference image first, then start AR session
+        // Load reference image, then update configuration
         loadReferenceImage { [weak self] success in
             guard let self = self else { return }
             
-            let configuration = ARImageTrackingConfiguration()
-            
             if success, let referenceImage = self.referenceImage {
+                let configuration = ARImageTrackingConfiguration()
                 configuration.trackingImages = [referenceImage]
                 configuration.maximumNumberOfTrackedImages = 1
-                self.sceneView.session.run(configuration)
+                
+                // Update existing session with new configuration
+                sceneView.session.run(configuration, options: [.removeExistingAnchors])
                 
                 // Hide loading message after reference image is loaded
                 DispatchQueue.main.async {
                     self.hideLoadingAnimation()
                 }
                 
-                print("AR session running with downloaded reference image")
+                print("AR session updated with downloaded reference image")
             }
         }
     }
@@ -166,7 +180,8 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             self.referenceImage = refImage
             
             // Also update the overlay image on the main thread
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
                 self.overlayImageView.image = uiImage
             }
             
