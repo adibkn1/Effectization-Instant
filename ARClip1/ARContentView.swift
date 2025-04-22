@@ -56,7 +56,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             print("Failed to set up AVAudioSession: \(error.localizedDescription)")
         }
 
-        // Initialize ARSCNView
+        // Initialize ARSCNView first
         sceneView = ARSCNView(frame: self.view.bounds)
         sceneView.delegate = self
         sceneView.session.delegate = self
@@ -70,6 +70,16 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         setupButton()
         setupLoadingIndicator()
         setupLoadingLabel()
+
+        // Hide overlay initially
+        overlayImageView.isHidden = true
+        overlayLabel.isHidden = true
+
+        // Show loading state immediately
+        showLoadingAnimation()
+        loadingLabel.text = "Preparing your experience"
+        view.bringSubviewToFront(loadingIndicator)
+        view.bringSubviewToFront(loadingLabel)
 
         // Preload the video in the background
         preloadVideo()
@@ -126,15 +136,6 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         let initialConfiguration = ARImageTrackingConfiguration()
         sceneView.session.run(initialConfiguration)
         
-        // Show loading state while keeping camera feed visible
-        DispatchQueue.main.async {
-            self.showLoadingAnimation()
-            self.loadingLabel.text = "Preparing your experience"
-            // Make sure loading elements are on top of the camera feed
-            self.view.bringSubviewToFront(self.loadingIndicator)
-            self.view.bringSubviewToFront(self.loadingLabel)
-        }
-        
         // Load reference image, then update configuration
         loadReferenceImage { [weak self] success in
             guard let self = self else { return }
@@ -147,9 +148,11 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 // Update existing session with new configuration
                 sceneView.session.run(configuration, options: [.removeExistingAnchors])
                 
-                // Hide loading message after reference image is loaded
+                // Hide loading message and show overlay after reference image is loaded
                 DispatchQueue.main.async {
                     self.hideLoadingAnimation()
+                    self.overlayImageView.isHidden = false
+                    self.overlayLabel.isHidden = false
                 }
                 
                 print("AR session updated with downloaded reference image")
@@ -179,7 +182,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             refImage.name = "targetImage"
             self.referenceImage = refImage
             
-            // Also update the overlay image on the main thread
+            // Update the overlay image on the main thread
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 self.overlayImageView.image = uiImage

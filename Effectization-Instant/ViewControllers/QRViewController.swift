@@ -17,7 +17,8 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
     
     override func loadView() {
         super.loadView()
-        view.backgroundColor = .black
+        // Remove black background to prevent flash
+        view.backgroundColor = .clear
         setupCamera()
     }
     
@@ -68,7 +69,7 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
         previewLayer.videoGravity = .resizeAspectFill
         view.layer.addSublayer(previewLayer)
         
-        // Start the session on a background thread
+        // Start the session immediately
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             self?.captureSession.startRunning()
         }
@@ -88,26 +89,13 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
-        // Set initial alpha to 0
-        previewLayer?.opacity = 0
+        // Remove fade-in animation
+        previewLayer?.opacity = 1.0
         
         if captureSession?.isRunning == false {
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 self?.captureSession?.startRunning()
-                // Once camera starts, fade in the preview layer
-                DispatchQueue.main.async {
-                    CATransaction.begin()
-                    CATransaction.setAnimationDuration(0.3)
-                    self?.previewLayer?.opacity = 1.0
-                    CATransaction.commit()
-                }
             }
-        } else {
-            // If session is already running, just fade in the preview layer
-            CATransaction.begin()
-            CATransaction.setAnimationDuration(0.3)
-            previewLayer?.opacity = 1.0
-            CATransaction.commit()
         }
     }
     
@@ -196,16 +184,18 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
         }
 
         // Check if the code is valid or unsupported
-        if let url = URL(string: formattedCode), url.host == "appclip.effectizationstudio.com", url.path == "/app-clip/test" {
-            print("Matched ARContentView trigger.")
-            transitionToARView()
+        if let url = URL(string: formattedCode),
+           (url.absoluteString == "https://appclip.apple.com/id?p=Effectization-Studio.Effectization-Instant.Clip" ||
+            url.host == "appclip.effectizationstudio.com") {
+            print("Matched AR trigger.")
+            presentARView()
         } else {
             print("Scanned URL is unsupported: \(formattedCode)")
             showUnsupportedQRCodeMessage()
         }
     }
 
-    func transitionToARView() {
+    func presentARView() {
         DispatchQueue.main.async {
             // Stop the QR scanner first
             if self.captureSession?.isRunning == true {
@@ -251,9 +241,10 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
     func handleScannedQRCode(url: URL) {
         print("Handling Scanned URL: \(url.absoluteString)")
 
-        if url.host == "appclip.effectizationstudio.com", url.path == "/app-clip/test" {
-            print("Matched ARContentView trigger.")
-            transitionToARView()
+        if url.absoluteString == "https://appclip.apple.com/id?p=Effectization-Studio.Effectization-Instant.Clip" ||
+           url.host == "appclip.effectizationstudio.com" {
+            print("Matched AR trigger.")
+            presentARView()
         } else {
             print("Scanned URL is unsupported: \(url.absoluteString)")
             showUnsupportedQRCodeMessage()

@@ -31,5 +31,16 @@
 	<array>
 		<string>com.apple.corespotlightitem</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>effectization-instant</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>com.effectizationstudio.instant</string>
+		</dict>
+	</array>
 </dict>
 </plist>
