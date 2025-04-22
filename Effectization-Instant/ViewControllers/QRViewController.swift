@@ -120,9 +120,13 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
         previewLayer?.opacity = 0
         CATransaction.commit()
         
-        if captureSession?.isRunning == true {
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                self?.captureSession?.stopRunning()
+        // Only stop the session if we're actually leaving the view controller
+        // This prevents freezing when switching between tabs
+        if isMovingFromParent || isBeingDismissed {
+            if captureSession?.isRunning == true {
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    self?.captureSession?.stopRunning()
+                }
             }
         }
     }
@@ -204,8 +208,9 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
     func transitionToARView() {
         DispatchQueue.main.async {
             // Stop the QR scanner first
-            self.captureSession?.stopRunning()
-            self.captureSession = nil
+            if self.captureSession?.isRunning == true {
+                self.captureSession?.stopRunning()
+            }
             print("QR scanner stopped.")
             
             let arContentView = ARContentView()
@@ -289,8 +294,11 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
     
     // Restart scanner
     func restartScanner() {
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 2) {
-            if let captureSession = self.captureSession {
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 2) { [weak self] in
+            guard let self = self, let captureSession = self.captureSession else { return }
+            
+            // Only restart if the session isn't already running
+            if !captureSession.isRunning {
                 print("Restarting scanner.")
                 captureSession.startRunning()
             }
