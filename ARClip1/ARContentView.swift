@@ -16,7 +16,7 @@ struct ARContentView: UIViewControllerRepresentable {
 class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     // MARK: - URLs
     private let targetImageURL = "https://github.com/adibkn1/FlappyBird/blob/main/image.png?raw=true"
-    private let videoURL = "https://github.com/adibkn1/FlappyBird/raw/refs/heads/main/113.mp4"
+    private let videoURL = "https://github.com/adibkn1/FlappyBird/raw/refs/heads/main/video.mp4"
     
     // MARK: - Properties
     var sceneView: ARSCNView!
@@ -371,7 +371,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         // Main button with modern styling
         actionButton = UIButton(type: .custom)
         actionButton.translatesAutoresizingMaskIntoConstraints = false
-        actionButton.backgroundColor = UIColor(red: 0.11, green: 0.11, blue: 0.118, alpha: 1)
+        actionButton.backgroundColor = UIColor(red: 248/255, green: 75/255, blue: 7/255, alpha: 1.0)
         actionButton.layer.cornerRadius = 25
         actionButton.clipsToBounds = true
         actionButton.isHidden = true
@@ -385,7 +385,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         arrowImageView.tintColor = .white
 
         let label = UILabel()
-        label.text = "Book a Ride"
+        label.text = "Get this Watch"
         label.textColor = .white
         label.font = UIFont.systemFont(ofSize: 17, weight: .medium)
         label.textAlignment = .center

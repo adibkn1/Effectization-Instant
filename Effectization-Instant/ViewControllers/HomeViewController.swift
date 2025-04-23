@@ -381,7 +381,7 @@ class HomeViewController: UIViewController, UIScrollViewDelegate {
             print("Failed to set audio session category: \(error)")
         }
 
-        guard let videoURL = URL(string: "https://github.com/adibkn1/FlappyBird/raw/refs/heads/main/igloo.mp4") else {
+        guard let videoURL = URL(string: "https://effectizationstudio.com/appcliptut") else {
             print("Invalid video URL")
             return
         }

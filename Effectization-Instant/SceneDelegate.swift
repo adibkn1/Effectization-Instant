@@ -33,19 +33,17 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             
             // Present AR view
             DispatchQueue.main.async {
-                if let windowScene = self.window?.windowScene {
-                    let arContentView = ARContentView()
-                        .edgesIgnoringSafeArea(.all)
-                        .statusBar(hidden: true)
-                    
-                    let hostingController = UIHostingController(rootView: arContentView)
-                    hostingController.modalPresentationStyle = .fullScreen
-                    hostingController.modalTransitionStyle = .crossDissolve
-                    
-                    // Get the current view controller and present AR view
-                    if let rootViewController = self.window?.rootViewController {
-                        rootViewController.present(hostingController, animated: true)
-                    }
+                let arContentView = ARContentView()
+                    .edgesIgnoringSafeArea(.all)
+                    .statusBar(hidden: true)
+                
+                let hostingController = UIHostingController(rootView: arContentView)
+                hostingController.modalPresentationStyle = .fullScreen
+                hostingController.modalTransitionStyle = .crossDissolve
+                
+                // Get the current view controller and present AR view
+                if let rootViewController = self.window?.rootViewController {
+                    rootViewController.present(hostingController, animated: true)
                 }
             }
         }
