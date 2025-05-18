@@ -4,7 +4,8 @@
 <dict>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:appclip.effectizationstudio.com</string>
+		<string>appclips:adagxr.com</string>
+		<string>appclips:adagxr.com/card/*</string>
 	</array>
 </dict>
 </plist>

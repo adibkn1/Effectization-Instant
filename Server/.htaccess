@@ -1,0 +1,20 @@
+# Main .htaccess file for the root of adagxr.com
+# Enable rewrite engine
+RewriteEngine On
+
+# Ensure App Clip URLs return 200 status
+RewriteRule ^card(/.*)?$ - [L,R=200]
+
+# For SEO, redirect card to card/ with trailing slash
+RewriteCond %{REQUEST_URI} ^/card$
+RewriteRule ^card$ /card/ [R=301,L]
+
+# For the .well-known directory, ensure proper content types
+<IfModule mod_headers.c>
+    <FilesMatch "apple-app-site-association">
+        Header set Content-Type "application/json"
+    </FilesMatch>
+    
+    # Allow CORS for all resources
+    Header set Access-Control-Allow-Origin "*"
+</IfModule> 

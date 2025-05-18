@@ -9,6 +9,23 @@ import UIKit
 import AVFoundation
 import SwiftUI
 
+// Add URL parameter support to ARContentView
+struct ARContentViewWithParams: UIViewControllerRepresentable {
+    var launchURL: URL?
+    
+    func makeUIViewController(context: Context) -> ARViewController {
+        let controller = ARViewController()
+        if let url = launchURL {
+            controller.processLaunchURL(url)
+        }
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: ARViewController, context: Context) {
+        // No updates required for now
+    }
+}
+
 class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
     
     var captureSession: AVCaptureSession!
@@ -29,7 +46,7 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
         
         // Set up the video input (camera)
         guard let videoCaptureDevice = AVCaptureDevice.default(for: .video) else {
-            print("Your device doesn't support scanning a QR code.")
+            print("[QR] Your device doesn't support scanning a QR code.")
             return
         }
         
@@ -38,14 +55,14 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
         do {
             videoInput = try AVCaptureDeviceInput(device: videoCaptureDevice)
         } catch {
-            print("Error creating video input: \(error)")
+            print("[QR] Error creating video input: \(error)")
             return
         }
         
         if captureSession.canAddInput(videoInput) {
             captureSession.addInput(videoInput)
         } else {
-            print("Couldn't add video input to session.")
+            print("[QR] Couldn't add video input to session.")
             return
         }
         
@@ -57,7 +74,7 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
             metadataOutput.setMetadataObjectsDelegate(self, queue: DispatchQueue.main)
             metadataOutput.metadataObjectTypes = [.qr]
         } else {
-            print("Couldn't add metadata output to session.")
+            print("[QR] Couldn't add metadata output to session.")
             return
         }
         
@@ -174,7 +191,7 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
     }
 
     func handleDetectedCode(code: String) {
-        print("Scanned QR Code: \(code)")
+        print("[QR] Scanned QR Code: \(code)")
 
         var formattedCode = code
 
@@ -184,26 +201,34 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
         }
 
         // Check if the code is valid or unsupported
-        if let url = URL(string: formattedCode),
-           (url.absoluteString == "https://appclip.apple.com/id?p=Effectization-Studio.Effectization-Instant.Clip" ||
-            url.host == "appclip.effectizationstudio.com") {
-            print("Matched AR trigger.")
-            presentARView()
+        if let url = URL(string: formattedCode) {
+            // Check for adagxr.com URLs with card paths
+            if url.host == "adagxr.com" && url.path.contains("/card/") {
+                print("[QR] Matched adagxr.com AR trigger: \(url.absoluteString)")
+                presentARView(with: url)
+            } else if url.absoluteString == "https://appclip.apple.com/id?p=Effectization-Studio.Effectization-Instant.Clip" {
+                print("[QR] Matched App Clip URL.")
+                presentARView(with: url)
+            } else {
+                print("[QR] Scanned URL is unsupported: \(formattedCode)")
+                showUnsupportedQRCodeMessage()
+            }
         } else {
-            print("Scanned URL is unsupported: \(formattedCode)")
+            print("[QR] Invalid URL format: \(formattedCode)")
             showUnsupportedQRCodeMessage()
         }
     }
 
-    func presentARView() {
+    func presentARView(with url: URL? = nil) {
         DispatchQueue.main.async {
             // Stop the QR scanner first
             if self.captureSession?.isRunning == true {
                 self.captureSession?.stopRunning()
             }
-            print("QR scanner stopped.")
+            print("[QR] QR scanner stopped.")
             
-            let arContentView = ARContentView()
+            // Create AR content view with the scanned URL
+            let arContentView = ARContentViewWithParams(launchURL: url)
                 .edgesIgnoringSafeArea(.all)
                 .statusBar(hidden: true)
             
@@ -215,38 +240,19 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
             self.present(hostingController, animated: true)
         }
     }
-
-    // Handle detected QR code
-    func found(code: String) {
-        print("Scanned QR Code: \(code)")
-        
-        var formattedCode = code
-        
-        // Ensure the scanned code is a valid URL, prepend "https://" if necessary
-        if !formattedCode.lowercased().hasPrefix("http://") && !formattedCode.lowercased().hasPrefix("https://") {
-            formattedCode = "https://\(formattedCode)"
-        }
-        
-        // Open or process the scanned URL
-        if let url = URL(string: formattedCode) {
-            handleScannedQRCode(url: url)
-        } else {
-            print("Invalid URL format: \(formattedCode)")
-            showUnsupportedQRCodeMessage()
-            restartScanner()
-        }
-    }
     
     // Handle scanned QR code URLs
     func handleScannedQRCode(url: URL) {
-        print("Handling Scanned URL: \(url.absoluteString)")
+        print("[QR] Handling Scanned URL: \(url.absoluteString)")
 
-        if url.absoluteString == "https://appclip.apple.com/id?p=Effectization-Studio.Effectization-Instant.Clip" ||
-           url.host == "appclip.effectizationstudio.com" {
-            print("Matched AR trigger.")
-            presentARView()
+        if url.host == "adagxr.com" && url.path.contains("/card/") {
+            print("[QR] Matched adagxr.com AR trigger: \(url.absoluteString)")
+            presentARView(with: url)
+        } else if url.absoluteString == "https://appclip.apple.com/id?p=Effectization-Studio.Effectization-Instant.Clip" {
+            print("[QR] Matched App Clip URL.")
+            presentARView(with: url)
         } else {
-            print("Scanned URL is unsupported: \(url.absoluteString)")
+            print("[QR] Scanned URL is unsupported: \(url.absoluteString)")
             showUnsupportedQRCodeMessage()
             restartScanner()
         }
@@ -290,7 +296,7 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
             
             // Only restart if the session isn't already running
             if !captureSession.isRunning {
-                print("Restarting scanner.")
+                print("[QR] Restarting scanner.")
                 captureSession.startRunning()
             }
         }

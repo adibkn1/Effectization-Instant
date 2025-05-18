@@ -1,0 +1,26 @@
+# .htaccess file for the /card/ directory
+Options -Indexes
+
+# Enable rewrite engine
+RewriteEngine On
+
+# Prevent directory listing
+DirectoryIndex disabled
+
+# Ensure direct access to ar1, ar2, etc. returns 200 OK status
+<FilesMatch "^(ar|ar1|ar2|ar3)$">
+    RewriteRule ^ - [R=200,L]
+</FilesMatch>
+
+# Return 200 OK status for all App Clip URL patterns
+RewriteRule ^([^/.]+)/?$ - [L,R=200]
+
+# Set proper content types for JSON files
+<IfModule mod_mime.c>
+    AddType application/json .json
+</IfModule>
+
+# Allow CORS for all resources
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+</IfModule> 

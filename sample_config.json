@@ -1,0 +1,14 @@
+{
+  "targetImageURL": "https://adagxr.com/card/[FOLDER_ID]/image.png",
+  "videoURL": "https://adagxr.com/card/[FOLDER_ID]/video.mov",
+  "videoPlaneWidth": 1,
+  "videoPlaneHeight": 1.41431,
+  "addedWidth": 1.2,
+  "addedHeight": 1.2,
+  "ctaButtonText": "Get this Watch",
+  "ctaButtonColor": "#F84B07",
+  "ctaButtonURL": "https://effectizationstudio.com",
+  "ctaButtonDelay": 1.0,
+  "overlayText": "Scan this image",
+  "loadingText": "Preparing your experience"
+} 

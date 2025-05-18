@@ -1,0 +1,19 @@
+{
+  "appclips": {
+    "apps": [
+      "3KPKZYJ375.Effectization-Studio.Effectization-Instant.Clip"
+    ],
+    "details": [
+      {
+        "appIDs": [
+          "3KPKZYJ375.Effectization-Studio.Effectization-Instant.Clip"
+        ],
+        "components": [
+          {
+            "/": "/card/*"
+          }
+        ]
+      }
+    ]
+  }
+} 

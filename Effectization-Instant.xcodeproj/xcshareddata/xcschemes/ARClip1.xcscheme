@@ -53,7 +53,7 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "_XCAppClipURL"
-            value = "https://appclip.effectizationstudio.com/app-clip/test"
+            value = "https://adagxr.com/card"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>

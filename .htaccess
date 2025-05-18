@@ -1,0 +1,28 @@
+# Disable directory browsing
+Options -Indexes
+
+# Properly handle the apple-app-site-association file
+<Files "apple-app-site-association">
+    Header set Content-Type "application/json"
+    Header set Cache-Control "max-age=3600"
+</Files>
+
+# Protect specific file types from direct access
+<FilesMatch "\.(json|config)$">
+    Order deny,allow
+    Deny from all
+    # Allow access only to specific IPs if needed
+    # Allow from 127.0.0.1
+</FilesMatch>
+
+# Allow access to media files needed by app clips
+<FilesMatch "\.(png|jpg|jpeg|mov|mp4)$">
+    # These files are still accessible for the app to use
+    # But won't be listed in directory browsing
+</FilesMatch>
+
+# Redirect non-specific URL requests to a default page or app clip banner
+# Uncomment and customize if needed
+# RewriteEngine On
+# RewriteCond %{REQUEST_FILENAME} -d
+# RewriteRule ^(.*)$ /card/index.html [L,R=302] 
