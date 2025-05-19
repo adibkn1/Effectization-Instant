@@ -29,11 +29,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     private func handleIncomingURL(_ url: URL) {
         // Check if it's our App Clip URL
         if url.absoluteString == "https://appclip.apple.com/id?p=Effectization-Studio.Effectization-Instant.Clip" ||
-           url.host == "appclip.effectizationstudio.com" {
+           url.host == "appclip.effectizationstudio.com" ||
+           url.absoluteString.contains("adagxr.com/card/") {
+            
+            print("[Main App] Processing AR URL: \(url.absoluteString)")
+            
+            // Extract folderID from URL
+            let folderID = extractFolderIDFromURL(url) ?? "ar"
+            print("[Main App] Using folderID: \(folderID)")
             
             // Present AR view
             DispatchQueue.main.async {
-                let arContentView = ARContentView()
+                let arContentView = ARContentView(launchURL: url)
                     .edgesIgnoringSafeArea(.all)
                     .statusBar(hidden: true)
                 
@@ -47,6 +54,35 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 }
             }
         }
+    }
+    
+    // Helper method to extract folderID from URL
+    private func extractFolderIDFromURL(_ url: URL) -> String? {
+        // Try path component extraction
+        let pathComponents = url.pathComponents.filter { !$0.isEmpty }
+        if pathComponents.contains("card") {
+            if let cardIndex = pathComponents.firstIndex(of: "card"), cardIndex + 1 < pathComponents.count {
+                return pathComponents[cardIndex + 1]
+            }
+        }
+        
+        // Try URL path extraction
+        if let path = URLComponents(url: url, resolvingAgainstBaseURL: true)?.path {
+            let pathComps = path.components(separatedBy: "/").filter { !$0.isEmpty }
+            if pathComps.count >= 2 && pathComps[0] == "card" {
+                return pathComps[1]
+            }
+        }
+        
+        // Try subdomain extraction
+        if let host = url.host, host.contains(".") {
+            let hostComponents = host.components(separatedBy: ".")
+            if hostComponents.count >= 3 && hostComponents[1] == "adagxr" {
+                return hostComponents[0]
+            }
+        }
+        
+        return nil
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {

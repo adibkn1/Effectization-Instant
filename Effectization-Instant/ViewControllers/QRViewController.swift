@@ -5,6 +5,9 @@
 //  Created by Swarup Panda on 04/10/24.
 //
 
+// This functionality is only for the main app, not for the App Clip
+#if !APPCLIP
+
 import UIKit
 import AVFoundation
 import SwiftUI
@@ -14,10 +17,20 @@ struct ARContentViewWithParams: UIViewControllerRepresentable {
     var launchURL: URL?
     
     func makeUIViewController(context: Context) -> ARViewController {
-        let controller = ARViewController()
-        if let url = launchURL {
-            controller.processLaunchURL(url)
+        // Extract folderID from URL or use default
+        var folderID = "ar" // Default
+        
+        if let url = launchURL, let path = URLComponents(url: url, resolvingAgainstBaseURL: true)?.path {
+            let pathComponents = path.components(separatedBy: "/").filter { !$0.isEmpty }
+            if pathComponents.count >= 2 && pathComponents[0] == "card" {
+                folderID = pathComponents[1]
+                print("[QR] Extracted folderID from URL: \(folderID)")
+            }
         }
+        
+        // Create controller with folderID
+        let controller = ARViewController(folderID: folderID)
+        controller.launchURL = launchURL
         return controller
     }
 
@@ -302,3 +315,5 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
         }
     }
 }
+
+#endif

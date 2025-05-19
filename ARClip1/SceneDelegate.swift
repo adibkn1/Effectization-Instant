@@ -40,54 +40,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
     
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
-        logToFile("🚀 App Clip LAUNCHED")
-        logToFile("🔍 CONNECTION OPTIONS: \(connectionOptions)")
-        
-        // FOR TESTING: Set this to "ar2" or any other folderID you want to test
-        // When not empty, this will override any URL from the xcscheme
-        let debugFolderIDOverride = "" // Set to "ar2" to test ar2 without changing xcscheme
-        
-        if !debugFolderIDOverride.isEmpty {
-            logToFile("🧪 DEBUGGING MODE: Overriding with folderID: \(debugFolderIDOverride)")
-            currentFolderID = debugFolderIDOverride
-            // Create a fake URL for testing
-            self.launchURL = URL(string: "https://adagxr.com/card/\(debugFolderIDOverride)")
-        }
-        
-        if let activities = connectionOptions.userActivities.first {
-            logToFile("📱 LAUNCH ACTIVITY: \(activities.activityType)")
-            if activities.activityType == NSUserActivityTypeBrowsingWeb,
-               let url = activities.webpageURL {
-                logToFile("🌐 LAUNCH URL: \(url.absoluteString)")
-                logToFile("🔍 URL COMPONENTS: scheme=\(url.scheme ?? "nil"), host=\(url.host ?? "nil"), path=\(url.path)")
-                
-                // Only use the URL from activities if we're not in debug override mode
-                if debugFolderIDOverride.isEmpty {
-                    self.launchURL = url
-                }
-            }
-        } else {
-            logToFile("⚠️ NO USER ACTIVITIES at launch")
-        }
-        
-        // Clear any existing cache
-        clearAppCache()
-        
-        guard let windowScene = (scene as? UIWindowScene) else { return }
-        
-        // Extract launch URL from user activity (only if not using debug override)
-        if debugFolderIDOverride.isEmpty, 
-           let userActivity = connectionOptions.userActivities.first,
-           userActivity.activityType == NSUserActivityTypeBrowsingWeb,
-           let incomingURL = userActivity.webpageURL {
-            logToFile("📱 App launched with URL: \(incomingURL.absoluteString)")
-            self.launchURL = incomingURL
-        }
-        
-        // Add button to view logs
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.addViewLogsButton()
-        }
+        print("[AR] Scene will connect")
         
         // Register for config reload requests
         NotificationCenter.default.addObserver(
@@ -97,73 +50,207 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             object: nil
         )
         
-        // Create the SwiftUI view that provides the window contents
-        let contentView = ARContentView(launchURL: launchURL)
-            .edgesIgnoringSafeArea(.all)
+        guard let windowScene = (scene as? UIWindowScene) else { return }
         
-        // Use a UIHostingController as window root view controller
-        let window = UIWindow(windowScene: windowScene)
-        window.rootViewController = UIHostingController(rootView: contentView)
-        self.window = window
-        window.makeKeyAndVisible()
+        // Create window
+        window = UIWindow(windowScene: windowScene)
         
-        // Handle the App Clip invocation
-        if let userActivity = connectionOptions.userActivities.first {
-            print("[App] App launched with user activity: \(userActivity.activityType)")
-            handleUserActivity(userActivity)
-        } else {
-            print("[App] No user activity found at launch")
-            // Load default config
-            loadAndApplyConfig()
+        var initialURL: URL? = nil
+        var folderID = "ar" // Default folder ID
+        
+        // FIRST: Check environment variables for debugging/App Clip
+        // This is the highest priority source for the URL
+        if let envURL = ProcessInfo.processInfo.environment["_XCAppClipURL"],
+           let url = URL(string: envURL) {
+            print("[AR] 🔍 URL from environment (_XCAppClipURL): \(envURL)")
+            initialURL = url
+            
+            // Extract folder ID from URL
+            if let extractedFolderID = extractFolderIDFromURL(url) {
+                folderID = extractedFolderID
+                print("[AR] ✅ Extracted folderID from environment: \(folderID)")
+            } else {
+                print("[AR] ⚠️ Could not extract folderID from environment URL")
+            }
+            
+            handleURL(url)
         }
-    }
-    
-    func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
-        self.logToFile("📱 App CONTINUATION with activity: \(userActivity.activityType)")
-        self.logToFile("📱 Full user activity details: \(userActivity)")
         
-        // Clear the cache every time to force a fresh load
-        self.clearAppCache()
+        // SECOND: Process URLs from connection options
+        if folderID == "ar", let url = connectionOptions.urlContexts.first?.url {
+            print("[AR] 🔍 URL from connection options: \(url.absoluteString)")
+            initialURL = url
+            
+            // Extract folder ID from URL
+            if let extractedFolderID = extractFolderIDFromURL(url) {
+                folderID = extractedFolderID
+                print("[AR] ✅ Extracted folderID from URL context: \(folderID)")
+            } else {
+                print("[AR] ⚠️ Could not extract folderID from URL context")
+            }
+            
+            // Update internal state and continue with URL handling
+            handleURL(url)
+        }
         
-        if userActivity.activityType == NSUserActivityTypeBrowsingWeb,
-           let incomingURL = userActivity.webpageURL {
-            
-            self.logToFile("🔍 CONTINUATION URL: \(incomingURL.absoluteString)")
-            self.logToFile("🔍 URL COMPONENTS: scheme=\(incomingURL.scheme ?? "nil"), host=\(incomingURL.host ?? "nil"), path=\(incomingURL.path)")
-            self.launchURL = incomingURL
-            
-            // Force a complete reset of config
-            if let path = URLComponents(url: incomingURL, resolvingAgainstBaseURL: true)?.path {
-                let pathComponents = path.components(separatedBy: "/").filter { !$0.isEmpty }
-                self.logToFile("🔍 PATH COMPONENTS: \(pathComponents)")
+        // THIRD: Handle user activity if present
+        if folderID == "ar", let userActivity = connectionOptions.userActivities.first {
+            print("[AR] 🔍 User activity received: \(userActivity.activityType)")
+            if let url = userActivity.webpageURL {
+                print("[AR] 🔍 URL from user activity: \(url.absoluteString)")
+                initialURL = url
                 
-                if pathComponents.count >= 2 && pathComponents[0] == "card" {
-                    let newFolderID = pathComponents[1]
-                    self.logToFile("🔄 Continuation detected NEW folderID: \(newFolderID) (current was: \(self.currentFolderID))")
-                    
-                    // Always update the folderID and force a reload
-                    self.currentFolderID = newFolderID
-                    self.currentConfigID = "sample_config"
-                    
-                    // Ensure cache is completely clear
-                    self.logToFile("🧹 Ensuring URLCache is completely cleared for all domains")
-                    URLCache.shared.removeAllCachedResponses()
-                    
-                    // We need to notify the active AR view controller
-                    self.logToFile("📣 Posting ConfigChangedNotification to update AR view")
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("ConfigChangedNotification"), 
-                        object: nil,
-                        userInfo: ["folderID": newFolderID]
-                    )
+                // Extract folder ID from URL
+                if let extractedFolderID = extractFolderIDFromURL(url) {
+                    folderID = extractedFolderID
+                    print("[AR] ✅ Extracted folderID from user activity: \(folderID)")
+                } else {
+                    print("[AR] ⚠️ Could not extract folderID from user activity")
                 }
+                
+                handleURL(url)
             }
         }
         
-        // Always reload config when continuing
-        self.logToFile("🔄 Forcing config reload on continuation")
-        UserDefaults.standard.removeObject(forKey: "config_notification_posted")
-        self.loadAndApplyConfig()
+        // Set current folder ID from extraction result
+        currentFolderID = folderID
+        print("[AR] 🚀 Using folderID: \(folderID) for view controller creation")
+        
+        // Create and set root view controller with extracted folderID
+        let arViewController = ARViewController(folderID: folderID)
+        
+        // Set the URL after initialization so it can handle any additional processing
+        if let url = initialURL {
+            arViewController.launchURL = url
+        }
+        
+        window?.rootViewController = arViewController
+        window?.makeKeyAndVisible()
+    }
+    
+    // Helper method to extract folderID from URL
+    private func extractFolderIDFromURL(_ url: URL) -> String? {
+        // Try path component extraction first
+        let pathComponents = url.pathComponents.filter { !$0.isEmpty }
+        if pathComponents.contains("card") {
+            if let cardIndex = pathComponents.firstIndex(of: "card"), cardIndex + 1 < pathComponents.count {
+                return pathComponents[cardIndex + 1]
+            }
+        }
+        
+        // Try URL path extraction
+        if let path = URLComponents(url: url, resolvingAgainstBaseURL: true)?.path {
+            let pathComps = path.components(separatedBy: "/").filter { !$0.isEmpty }
+            if pathComps.count >= 2 && pathComps[0] == "card" {
+                return pathComps[1]
+            }
+        }
+        
+        // Try subdomain extraction
+        if let host = url.host, host.contains(".") {
+            let hostComponents = host.components(separatedBy: ".")
+            if hostComponents.count >= 3 && hostComponents[1] == "adagxr" {
+                return hostComponents[0]
+            }
+        }
+        
+        return nil
+    }
+    
+    func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+        print("[AR] Scene continue user activity: \(userActivity.activityType)")
+        if let url = userActivity.webpageURL {
+            print("[AR] URL from user activity: \(url.absoluteString)")
+            if let arViewController = window?.rootViewController as? ARViewController {
+                arViewController.launchURL = url
+            }
+            handleURL(url)
+        }
+    }
+    
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        print("[AR] Scene open URL contexts")
+        if let url = URLContexts.first?.url {
+            print("[AR] URL from contexts: \(url.absoluteString)")
+            if let arViewController = window?.rootViewController as? ARViewController {
+                arViewController.launchURL = url
+            }
+            handleURL(url)
+        }
+    }
+    
+    private func handleURL(_ url: URL) {
+        logToFile("📱 Handling URL: \(url.absoluteString)")
+        
+        // DEBUG: Print all URL components for diagnosis
+        logToFile("🔍 DEBUG URL COMPONENTS:")
+        logToFile("🔍 scheme: \(url.scheme ?? "nil")")
+        logToFile("🔍 host: \(url.host ?? "nil")")
+        logToFile("🔍 path: \(url.path)")
+        logToFile("🔍 pathComponents: \(url.pathComponents)")
+        logToFile("🔍 filtered pathComponents: \(url.pathComponents.filter { !$0.isEmpty })")
+        
+        // Extract folder ID from URL path using improved method
+        let pathComponents = url.pathComponents.filter { !$0.isEmpty }
+        
+        // For URLs with 'card' in the path (e.g., /card/ar1/)
+        if pathComponents.contains("card") {
+            if let cardIndex = pathComponents.firstIndex(of: "card"), cardIndex + 1 < pathComponents.count {
+                // Get the folder ID (ar1, ar2, etc.)
+                let folderID = pathComponents[cardIndex + 1]
+                logToFile("✅ Extracted folderID from path: \(folderID)")
+                
+                // Update app state
+                currentFolderID = folderID
+                currentConfigID = "sample_config"
+                
+                // Clear caches
+                URLCache.shared.removeAllCachedResponses()
+                
+                logToFile("🔄 Updated app state with folderID: \(folderID)")
+                
+                // Notify observers of folder ID change
+                NotificationCenter.default.post(name: NSNotification.Name("UpdateFolderID"), object: nil)
+                
+                // Load configuration
+                loadAndApplyConfig()
+                return
+            }
+        }
+        
+        // Try to extract from host if it's a subdomain
+        if let host = url.host, host.contains(".") {
+            let hostComponents = host.components(separatedBy: ".")
+            if hostComponents.count >= 3 && hostComponents[1] == "adagxr" {
+                let possibleFolderID = hostComponents[0]
+                logToFile("✅ Extracted folderID from subdomain: \(possibleFolderID)")
+                
+                // Update app state
+                currentFolderID = possibleFolderID
+                currentConfigID = "sample_config"
+                
+                // Clear caches
+                URLCache.shared.removeAllCachedResponses()
+                
+                // Notify observers
+                NotificationCenter.default.post(name: NSNotification.Name("UpdateFolderID"), object: nil)
+                
+                // Load configuration
+                loadAndApplyConfig()
+                return
+            }
+        }
+        
+        // Fallback to default folder ID
+        logToFile("⚠️ Could not extract folderID, using default")
+        currentFolderID = "ar"
+        currentConfigID = "sample_config"
+        
+        // Notify observers
+        NotificationCenter.default.post(name: NSNotification.Name("UpdateFolderID"), object: nil)
+        
+        // Load configuration
+        loadAndApplyConfig()
     }
     
     private func handleUserActivity(_ userActivity: NSUserActivity) {
@@ -258,54 +345,95 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
     
     private func loadAndApplyConfig() {
-        logToFile("⏳ Starting config load: folderID=\(currentFolderID), configID=\(currentConfigID)")
+        logToFile("⏳ Starting config load for folderID=\(currentFolderID)")
+        logToFile("🔍 CURRENT STATE: folderID='\(currentFolderID)', configID='\(currentConfigID)'")
         
-        // Force clear all caches before loading
+        // Clear caches before loading
         URLCache.shared.removeAllCachedResponses()
-        UserDefaults.standard.removeObject(forKey: "config_cache_timestamp")
-        UserDefaults.standard.removeObject(forKey: "cached_config")
+        UserDefaults.standard.removeObject(forKey: "config_notification_posted")
         
-        // Set loading flag indicating we're in the process of loading a config
-        UserDefaults.standard.set(false, forKey: "config_notification_posted")
+        // Set loading state
+        let loadingID = String(UUID().uuidString.prefix(6))
+        logToFile("🔄 [Request \(loadingID)] Loading configuration")
         
-        // ENSURE configID is sample_config
-        self.currentConfigID = "sample_config"
+        // DEBUG: Log what config URL should be loaded
+        let expectedURL = "https://adagxr.com/card/\(currentFolderID)/sample_config.json"
+        logToFile("🔍 Expected config URL: \(expectedURL)")
         
-        // Add debug view
-        print("⏬ EXPLICITLY LOADING config from: https://adagxr.com/card/\(currentFolderID)/\(currentConfigID).json")
-        logToFile("⏬ EXPLICITLY LOADING config from: https://adagxr.com/card/\(currentFolderID)/\(currentConfigID).json")
-        
-        // Add network timeout handler
-        let configTimeout = Timer.scheduledTimer(withTimeInterval: 30, repeats: false) { [weak self] _ in
-            self?.logToFile("⚠️ Config loading timed out after 30 seconds")
-        }
-        
-        ConfigManager.shared.loadConfig(folderID: currentFolderID, configID: currentConfigID) { [weak self] config in
+        // Create a timeout mechanism
+        let timeoutTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: false) { [weak self] _ in
             guard let self = self else { return }
             
-            // Cancel timeout
-            configTimeout.invalidate()
+            // If we haven't posted a notification yet
+            if !UserDefaults.standard.bool(forKey: "config_notification_posted") {
+                self.logToFile("⚠️ [Request \(loadingID)] Configuration load timed out after 20s")
+                
+                // Use default configuration as fallback
+                let defaultConfig = ConfigManager.shared.defaultConfiguration(for: self.currentFolderID)
+                self.logToFile("🔄 [Request \(loadingID)] Using default configuration")
+                
+                // Post the default configuration
+                self.postConfigNotification(defaultConfig)
+            }
+        }
+        
+        // Load configuration using new ConfigManager
+        ConfigManager.shared.loadConfiguration(folderID: currentFolderID) { [weak self] result in
+            guard let self = self else { return }
             
-            // Only proceed if we haven't already posted a config notification
+            // Cancel timeout timer
+            timeoutTimer.invalidate()
+            
+            // Only proceed if we haven't already posted a notification
             guard !UserDefaults.standard.bool(forKey: "config_notification_posted") else {
                 self.logToFile("✅ Config notification was already posted, not posting another")
                 return
             }
             
-            // Print debug information about which config was loaded
-            self.logToFile("✅ CONFIG LOADED: buttonText='\(config.ctaButtonText)', overlayText='\(config.overlayText)'")
-            
-            // Post notification with the config
-            self.logToFile("📣 Posting ConfigLoadedNotification with loaded config")
-            NotificationCenter.default.post(
-                name: Notification.Name("ConfigLoadedNotification"),
-                object: nil,
-                userInfo: ["config": config]
-            )
-            
-            // Mark that we've posted a notification to avoid duplicate default configs
-            UserDefaults.standard.set(true, forKey: "config_notification_posted")
+            switch result {
+            case .success(let config):
+                // Log successful configuration
+                self.logToFile("✅ [Request \(loadingID)] Configuration loaded successfully")
+                self.logToFile("📋 targetImageURL: \(config.targetImageURL)")
+                self.logToFile("📋 videoURL: \(config.videoURL)")
+                self.logToFile("📋 Button text: '\(config.ctaButtonText)'")
+                self.logToFile("📋 Overlay text: '\(config.overlayText)'")
+                
+                // Post notification with config
+                self.postConfigNotification(config)
+                
+            case .failure(let error):
+                // Log error
+                self.logToFile("❌ [Request \(loadingID)] Failed to load configuration: \(error.localizedDescription)")
+                
+                // Use default configuration
+                let defaultConfig = ConfigManager.shared.defaultConfiguration(for: self.currentFolderID)
+                self.logToFile("🔄 [Request \(loadingID)] Using default configuration")
+                
+                // Post the default configuration
+                self.postConfigNotification(defaultConfig)
+            }
         }
+    }
+    
+    // Helper method to post config notification
+    private func postConfigNotification(_ config: ARConfig) {
+        // Only post if we haven't already
+        guard !UserDefaults.standard.bool(forKey: "config_notification_posted") else {
+            return
+        }
+        
+        logToFile("📣 Posting ConfigLoadedNotification")
+        
+        // Post notification with config
+        NotificationCenter.default.post(
+            name: Notification.Name("ConfigLoadedNotification"),
+            object: nil,
+            userInfo: ["config": config]
+        )
+        
+        // Mark that we've posted a notification
+        UserDefaults.standard.set(true, forKey: "config_notification_posted")
     }
     
     // Clear all app caches
@@ -323,10 +451,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         logToFile("✅ Cache cleared")
     }
     
-    @objc private func handleConfigReloadRequest() {
+    @objc private func handleConfigReloadRequest(_ notification: Notification) {
         logToFile("📣 Received config reload request")
+        
+        // Check if a specific folderID was provided
+        if let folderID = notification.userInfo?["folderID"] as? String {
+            logToFile("🔄 Will reload config with specified folderID: \(folderID)")
+            currentFolderID = folderID
+        }
+        
         // Clear the notification posted flag so we can post a new notification
         UserDefaults.standard.removeObject(forKey: "config_notification_posted")
+        
         // Reload config
         loadAndApplyConfig()
     }
