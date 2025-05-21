@@ -109,6 +109,8 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     private var retryCount = 0
     private let maxRetries = 3
     private let loadingTimeout: TimeInterval = 30 // 30 seconds timeout
+    private var videoPlaneNode: SCNNode? // Track the video plane node
+    private var hasShownCTAButton = false // Track if CTA button has been shown
     
     // MARK: - Configuration
     private var config: ARConfig = ARConfig.defaultConfig(folderID: "ar") // Default folderID
@@ -327,7 +329,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                     print("[AR] Loading overlay image from: \(config.targetImageURL)")
                     URLSession.shared.dataTask(with: imageURL) { [weak self] data, response, error in
                         if let data = data, let image = UIImage(data: data) {
-                            DispatchQueue.main.async {
+            DispatchQueue.main.async {
                                 if let overlayImageView = self?.overlayImageView {
                                     overlayImageView.image = image
                                     print("[AR] ✅ Successfully loaded overlay image")
@@ -359,10 +361,15 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             areAssetsLoaded = false
             isVideoReady = false
             isImageTracked = false
+            hasShownCTAButton = false // Reset button state
             
             // Clear any existing video
             videoPlayer?.pause()
             videoPlayer = nil
+            
+            // Remove existing video plane
+            videoPlaneNode?.removeFromParentNode()
+            videoPlaneNode = nil
             
             // Force reset AR session
             if let sceneView = self.sceneView {
@@ -413,7 +420,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             // Show loading animation (only if UI is initialized)
             if loadingLabel != nil && loadingIndicator != nil {
                 showLoadingAnimation()
-            } else {
+                } else {
                 print("[AR] ⚠️ Cannot show loading animation - UI not initialized yet")
             }
             
@@ -737,6 +744,12 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     
     // Separate method to set up the video player
     private func setupVideoPlayer(with videoURL: URL, completion: @escaping () -> Void) {
+        // First pause and release any existing player to prevent multiple playing
+        if let existingPlayer = self.videoPlayer {
+            existingPlayer.pause()
+        }
+        self.videoPlayer = nil
+        
         let asset = AVURLAsset(url: videoURL)
         
         // Create player item
@@ -785,9 +798,9 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 guard let self = self, 
                       let loadingLabel = self.loadingLabel else {
                     print("[AR] ⚠️ Cannot update loading state - UI not initialized")
-                    return
-                }
-                
+            return
+        }
+        
                 self.showLoadingAnimation()
                 loadingLabel.text = "Preparing AR experience..."
             }
@@ -834,7 +847,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 // Only update session if sceneView is initialized
                 if let sceneView = self.sceneView {
                     // Update session configuration
-                    sceneView.session.run(configuration, options: [.removeExistingAnchors])
+                sceneView.session.run(configuration, options: [.removeExistingAnchors])
                     self.areAssetsLoaded = true
                     print("[AR] 🎯 AR session started and ready for tracking")
                 } else {
@@ -933,9 +946,9 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         // First check if we have valid config
         if config.targetImageURL.isEmpty || config.videoURL.isEmpty {
             print("[AR] Cannot load assets without valid config")
-                return
-            }
-            
+            return
+        }
+        
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let group = DispatchGroup()
             
@@ -1180,8 +1193,8 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         for anchor in anchors {
             guard let imageAnchor = anchor as? ARImageAnchor else { continue }
             
-            if !imageAnchor.isTracked && self.isImageTracked {
-                // Image tracking is lost
+                if !imageAnchor.isTracked && self.isImageTracked {
+                    // Image tracking is lost
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
                     
@@ -1198,8 +1211,8 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                             print("[AR] Video paused")
                         }
                         
-                        // Hide the CTA button
-                        self.actionButton?.isHidden = true
+                        // Do NOT hide the CTA button once it has been shown
+                        // The button should remain visible even when tracking is lost
                     }
                 }
             } else if imageAnchor.isTracked && !self.isImageTracked {
@@ -1226,9 +1239,11 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                             print("[AR] Cannot play video - player not initialized")
                         }
                         
-                        // Show the CTA button with a delay
-                        print("[AR] 🔄 Showing CTA button after detection")
-                        self.showButtonWithDelay()
+                        // Show the CTA button with a delay if it hasn't been shown yet
+                        if !self.hasShownCTAButton {
+                            print("[AR] 🔄 Showing CTA button after detection")
+                            self.showButtonWithDelay()
+                        }
                     }
                 }
             }
@@ -1257,6 +1272,17 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         if let referenceImages = ARReferenceImage.referenceImages(inGroupNamed: "AR Resources", bundle: nil) {
             configuration.trackingImages = referenceImages
         }
+        
+        // Reset tracking flags and video
+        isImageTracked = false
+        
+        // Reset CTA button state
+        hasShownCTAButton = false
+        actionButton?.isHidden = true
+        
+        // Remove existing video plane
+        videoPlaneNode?.removeFromParentNode()
+        videoPlaneNode = nil
         
         sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
         print("[AR] AR session reset.")
@@ -1299,6 +1325,10 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
         
+        // Remove previous video plane if it exists
+        videoPlaneNode?.removeFromParentNode()
+        videoPlaneNode = nil
+        
         print("[AR] 🎬 Image anchor detected, adding video plane")
         
         // Create a plane geometry for the video
@@ -1321,6 +1351,9 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         
         // Position the node at the anchor's center
         planeNode.eulerAngles.x = -.pi / 2  // Rotate to face the camera
+        
+        // Store the plane node reference
+        videoPlaneNode = planeNode
         
         // Add the plane node to the anchor's node
         node.addChildNode(planeNode)
@@ -1518,7 +1551,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             UIView.animate(withDuration: 0.3) {
                 loadingLabel.alpha = 1.0
             }
-            loadingIndicator.startAnimating()
+        loadingIndicator.startAnimating()
             print("[AR] Loading animation started")
         }
     }
@@ -1535,7 +1568,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             UIView.animate(withDuration: 0.3) {
                 loadingLabel.alpha = 0.0
             } completion: { _ in
-                loadingIndicator.stopAnimating()
+        loadingIndicator.stopAnimating()
             }
             print("[AR] Loading animation hidden")
         }
@@ -1559,6 +1592,12 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
     // Show the button with a delay after the image is detected
     func showButtonWithDelay() {
+        // Don't show button again if already shown
+        guard !hasShownCTAButton else {
+            print("[AR] 🔘 CTA button already shown, not showing again")
+            return
+        }
+        
         // Use delay from config
         print("[AR] 🔘 Will show CTA button after \(config.ctaButtonDelay) seconds with text: '\(config.ctaButtonText)'")
         
@@ -1581,8 +1620,10 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
         
         DispatchQueue.main.asyncAfter(deadline: .now() + config.ctaButtonDelay) { [weak self] in
-            self?.actionButton.isHidden = false
-            print("[AR] 👆 Button displayed after delay: \(self?.config.ctaButtonDelay ?? 0) seconds.")
+            guard let self = self else { return }
+            self.hasShownCTAButton = true
+            self.actionButton.isHidden = false
+            print("[AR] 👆 Button displayed after delay: \(self.config.ctaButtonDelay) seconds.")
         }
     }
 
