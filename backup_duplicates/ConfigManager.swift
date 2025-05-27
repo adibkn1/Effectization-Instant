@@ -6,6 +6,9 @@ struct ARConfig: Codable {
     // MARK: - Properties
     let targetImageURL: String
     let videoURL: String
+    let hasTransparency: Bool
+    let videoRGBURL: String
+    let videoAlphaURL: String
     let videoPlaneWidth: CGFloat
     let videoPlaneHeight: CGFloat
     let addedWidth: CGFloat?
@@ -17,15 +20,13 @@ struct ARConfig: Codable {
     let overlayText: String
     let loadingText: String
     
-    // MARK: - Static Default Config
-    static func defaultConfig(folderID: String) -> ARConfig {
-        return ConfigManager.shared.defaultConfiguration(for: folderID)
-    }
-    
     // MARK: - Coding Keys
     enum CodingKeys: String, CodingKey {
         case targetImageURL
         case videoURL
+        case hasTransparency
+        case videoRGBURL
+        case videoAlphaURL
         case videoPlaneWidth
         case videoPlaneHeight
         case addedWidth
@@ -156,67 +157,27 @@ final class ConfigManager {
             case .success(let config):
                 completion(config)
             case .failure:
-                completion(self.defaultConfiguration(for: folderID))
+                // Return an empty config instead of nil
+                let emptyConfig = ARConfig(
+                    targetImageURL: "",
+                    videoURL: "",
+                    hasTransparency: false,
+                    videoRGBURL: "",
+                    videoAlphaURL: "",
+                    videoPlaneWidth: 1.0,
+                    videoPlaneHeight: 1.41431,
+                    addedWidth: 1.0,
+                    addedHeight: 1.0,
+                    ctaButtonText: "Learn More",
+                    ctaButtonColor: "#F84B07",
+                    ctaButtonURL: "https://effectizationstudio.com",
+                    ctaButtonDelay: 1.0,
+                    overlayText: "Scan this image",
+                    loadingText: "Preparing your experience"
+                )
+                completion(emptyConfig)
             }
         }
-    }
-    
-    // MARK: - Default Configuration
-    func defaultConfiguration(for folderID: String) -> ARConfig {
-        // Use the provided folderID or fall back to default
-        let folder = folderID.isEmpty ? DEFAULT_FOLDER_ID : folderID
-        
-        log("📝 Creating default configuration for folder: \(folder)")
-        
-        // Create default configuration with appropriate URLs
-        do {
-            let config = try JSONDecoder().decode(ARConfig.self, from: defaultConfigJSON(for: folder))
-            return config
-        } catch {
-            log("⚠️ Error creating default config: \(error.localizedDescription), using hardcoded values")
-            
-            // If JSON parsing fails, return hardcoded default values
-            return createHardcodedDefaultConfig(for: folder)
-        }
-    }
-    
-    // MARK: - Helper Methods
-    private func defaultConfigJSON(for folderID: String) -> Data {
-        // Create a JSON string with default values
-        let jsonString = """
-        {
-            "targetImageURL": "https://adagxr.com/card/\(folderID)/image.png",
-            "videoURL": "https://adagxr.com/card/\(folderID)/video.mov",
-            "videoPlaneWidth": 1.0,
-            "videoPlaneHeight": 1.41431,
-            "ctaButtonText": "Learn More",
-            "ctaButtonColor": "#F84B07",
-            "ctaButtonURL": "https://effectizationstudio.com",
-            "ctaButtonDelay": 1.0,
-            "overlayText": "Scan this image",
-            "loadingText": "Preparing your experience"
-        }
-        """
-        
-        return jsonString.data(using: .utf8)!
-    }
-    
-    private func createHardcodedDefaultConfig(for folderID: String) -> ARConfig {
-        // This is a fallback if JSON parsing fails
-        return ARConfig(
-            targetImageURL: "https://adagxr.com/card/\(folderID)/image.png",
-            videoURL: "https://adagxr.com/card/\(folderID)/video.mov",
-            videoPlaneWidth: 1.0,
-            videoPlaneHeight: 1.41431,
-            addedWidth: 1.0,
-            addedHeight: 1.0,
-            ctaButtonText: "Learn More",
-            ctaButtonColor: "#F84B07",
-            ctaButtonURL: "https://effectizationstudio.com",
-            ctaButtonDelay: 1.0,
-            overlayText: "Scan this image",
-            loadingText: "Preparing your experience"
-        )
     }
     
     // MARK: - Logging
