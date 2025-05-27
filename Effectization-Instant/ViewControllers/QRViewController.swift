@@ -5,6 +5,9 @@
 //  Created by Swarup Panda on 04/10/24.
 //
 
+// This functionality is only for the main app, not for the App Clip
+#if !APPCLIP
+
 import UIKit
 import AVFoundation
 import SwiftUI
@@ -246,16 +249,8 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
             hostingController.modalPresentationStyle = .fullScreen
             hostingController.modalTransitionStyle = .crossDissolve
             
-            // First, dismiss any currently presented view controller
-            if let presentedVC = self.presentedViewController {
-                presentedVC.dismiss(animated: false) {
-                    // Then present the AR view
-                    self.present(hostingController, animated: true)
-                }
-            } else {
-                // No presented view controller, present directly
-                self.present(hostingController, animated: true)
-            }
+            // Present the AR view directly
+            self.present(hostingController, animated: true)
         }
     }
     
@@ -320,3 +315,5 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
         }
     }
 }
+
+#endif

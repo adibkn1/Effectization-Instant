@@ -2,6 +2,7 @@ import SwiftUI
 import ARKit
 import SceneKit
 import AVFoundation
+import Combine
 import Network
 
 // This extension is already defined in UIColorExtension.swift, but with different implementation
@@ -46,6 +47,9 @@ extension UIColor {
         self.init(red: red, green: green, blue: blue, alpha: alpha)
     }
 }
+
+// Ensure self is properly recognized in guard statements
+typealias ARContentViewController = ARViewController
 
 struct ARContentView: UIViewControllerRepresentable {
     var launchURL: URL?
@@ -115,7 +119,23 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     private var isUsingTransparentVideo = false // Flag to track transparent video mode
     
     // MARK: - Configuration
-    private var config: ARConfig = ARConfig.defaultConfig(folderID: "ar") // Default folderID
+    private var config: ARConfig = ARConfig(
+        targetImageURL: "",
+        videoURL: "",
+        hasTransparency: false,
+        videoRGBURL: "",
+        videoAlphaURL: "",
+        videoPlaneWidth: 1.0,
+        videoPlaneHeight: 1.41431,
+        addedWidth: 1.0,
+        addedHeight: 1.0,
+        ctaButtonText: "Learn More",
+        ctaButtonColor: "#F84B07",
+        ctaButtonURL: "https://effectizationstudio.com",
+        ctaButtonDelay: 1.0,
+        overlayText: "Scan this image",
+        loadingText: "Preparing your experience"
+    )
     private var initialFolderID: String
     
     // Custom initializer that accepts a folderID
@@ -123,8 +143,6 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         self.initialFolderID = folderID
         super.init(nibName: nil, bundle: nil)
         
-        // Initialize with the provided folderID
-        self.config = ARConfig.defaultConfig(folderID: folderID)
         print("[AR] Controller initialized with folderID: \(folderID)")
     }
     
@@ -379,8 +397,8 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             // Show loading animation
             showLoadingAnimation()
             
-            // Use the provided folderID from notification 
-            config = ARConfig.defaultConfig(folderID: folderID)
+            // Clear the configuration values but don't assign a new default config
+            // Just keep the current config structure
             print("[AR] Updated config with new folderID: \(folderID), targetImageURL: \(config.targetImageURL)")
             print("[AR] New config - hasTransparency: \(config.hasTransparency), videoRGBURL: \(config.videoRGBURL)")
             
@@ -458,14 +476,9 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                     
                 case .failure(let error):
                     print("[AR] ❌ Failed to load configuration: \(error.localizedDescription)")
-                    print("[AR] 🔄 Falling back to default configuration")
-                    
-                    // Create a proper default config and apply it
-                    let defaultConfig = ConfigManager.shared.defaultConfiguration(for: folderID)
-                    
+                    // Instead of falling back to default config, present QR scanner and show message
                     DispatchQueue.main.async {
-                        self.config = defaultConfig
-                        self.applyConfig(defaultConfig)
+                        self.presentQRScannerWithMessage()
                     }
                 }
             }
@@ -675,19 +688,25 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             guard let rgbURL = URL(string: config.videoRGBURL),
                   let alphaURL = URL(string: config.videoAlphaURL) else {
                 print("[AR] ❌ Invalid RGB or Alpha URLs: \(config.videoRGBURL), \(config.videoAlphaURL)")
-            completion()
-            return
-        }
-
+                completion()
+                return
+            }
+            
+            // Validate URLs
+            print("[AR] 🔍 RGB URL: \(rgbURL.absoluteString)")
+            print("[AR] 🔍 Alpha URL: \(alphaURL.absoluteString)")
+            
             // Create and set up transparent video player
             let transparentPlayer = TransparentVideoPlayer()
             self.transparentVideoPlayer = transparentPlayer
+            self.isUsingTransparentVideo = true
             
             // Set callback for when videos are ready
             transparentPlayer.onReadyCallback = { [weak self] in
                 DispatchQueue.main.async {
-                    self?.isVideoReady = true
-                    self?.isUsingTransparentVideo = true
+                    guard let self = self else { return }
+                    
+                    self.isVideoReady = true
                     print("[AR] ✅ Transparent video is ready with RGB+Alpha")
                     completion()
                 }
@@ -698,11 +717,17 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 print("[AR] ❌ Transparent video error: \(error.localizedDescription)")
                 print("[AR] 🔄 Falling back to standard video mode")
                 
-                // Fall back to standard video if available
-                if let videoURL = URL(string: self?.config.videoRGBURL ?? "") {
-                    self?.loadStandardVideo(videoURL: videoURL, completion: completion)
-                } else {
-                    DispatchQueue.main.async {
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    
+                    // Reset transparent video flags
+                    self.isUsingTransparentVideo = false
+                    self.transparentVideoPlayer = nil
+                    
+                    // Fall back to standard video if available
+                    if let videoURL = URL(string: self.config.videoRGBURL) {
+                        self.loadStandardVideo(videoURL: videoURL, completion: completion)
+                    } else {
                         completion()
                     }
                 }
@@ -713,10 +738,16 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 if !success {
                     print("[AR] ❌ Failed to load transparent videos, falling back to standard video")
                     // Fall back to standard video
-                    if let videoURL = URL(string: self.config.videoRGBURL) {
-                        self.loadStandardVideo(videoURL: videoURL, completion: completion)
-                    } else {
-                        DispatchQueue.main.async {
+                    DispatchQueue.main.async {
+                        if self == nil { return }
+                        
+                        // Reset transparent video flags
+                        weakSelf.isUsingTransparentVideo = false
+                        weakSelf.transparentVideoPlayer = nil
+                        
+                        if let videoURL = URL(string: weakSelf.config.videoRGBURL) {
+                            self.loadStandardVideo(videoURL: videoURL, completion: completion)
+                        } else {
                             completion()
                         }
                     }
@@ -952,32 +983,26 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         networkMonitor = NWPathMonitor()
         
         networkMonitor?.pathUpdateHandler = { [weak self] path in
-                DispatchQueue.main.async {
+            DispatchQueue.main.async {
                 guard let self = self else { return }
                 
-                // Only show network error if we have a config with valid URLs but can't load them
-                let hasValidConfig = !self.config.targetImageURL.isEmpty && !self.config.videoURL.isEmpty
-                
+                // Only show network error if we have no network connection and aren't showing assets yet
                 if path.status == .satisfied {
                     print("[AR] Network connection available")
-                    // If we have a config and aren't showing assets yet, retry loading
-                    if hasValidConfig && !self.areAssetsLoaded {
-                        print("[AR] Retry loading assets with valid config")
-                        self.hideNetworkError()
-                        self.retryLoadingAssets()
-                    }
-                } else if hasValidConfig {
-                    // Only show the error if we have a valid config but no network
-                    print("[AR] Network connection unavailable")
+                    // If we aren't showing assets yet, retry loading
                     if !self.areAssetsLoaded {
-                        self.showNetworkError()
+                        print("[AR] Network is available, hide network error if shown")
+                        self.hideNetworkError()
                     }
                 } else {
-                    print("[AR] Waiting for configuration before checking network requirement")
-                    // Show loading state if we don't have a config yet
-                    self.hideNetworkError()
+                    // Only show no internet error if there's actually no internet
+                    print("[AR] Network connection unavailable")
+                    if !self.areAssetsLoaded {
+                        print("[AR] No network, showing no internet error")
+                        self.showNetworkError()
+                    }
+                }
             }
-        }
         }
         networkMonitor?.start(queue: DispatchQueue.global())
     }
@@ -1007,22 +1032,20 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         // Always try to retry, don't rely on networkMonitor's current status which might be stale
         hideNetworkError()
         
-        // Try loading config again
-        if let url = launchURL {
-            print("[AR] Re-processing launch URL: \(url)")
-            processLaunchURL(url)
-        } else {
-            // If no URL available, try with current config
-            if !config.targetImageURL.isEmpty && !config.videoURL.isEmpty {
-                retryLoadingAssets()
+        // Check if network is available again
+        if let networkMonitor = self.networkMonitor, networkMonitor.currentPath.status == .satisfied {
+            // Try loading config again
+            if let url = launchURL {
+                print("[AR] Re-processing launch URL: \(url)")
+                processLaunchURL(url)
             } else {
-                // Post a notification to reload config
-                print("[AR] Requesting config reload")
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("RequestConfigReloadNotification"),
-                    object: nil
-                )
+                // No URL available, show QR scanner
+                print("[AR] No URL available to reload - showing QR scanner")
+                presentQRScannerWithMessage()
             }
+        } else {
+            // Still no network, just hide network error and show loading
+            showLoadingAnimation()
         }
     }
 
@@ -1071,7 +1094,16 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
     private func handleLoadingTimeout() {
         print("[AR] Loading timeout reached")
-        showNetworkError()
+        // Check if we have network
+        if let networkMonitor = self.networkMonitor, networkMonitor.currentPath.status == .satisfied {
+            // We have internet but loading timed out, show QR scanner
+            print("[AR] Network available but loading timed out - showing QR scanner")
+            presentQRScannerWithMessage()
+        } else {
+            // No internet, show network error
+            print("[AR] No network and loading timed out - showing network error")
+            showNetworkError()
+        }
     }
 
     private func handleSuccessfulAssetLoading() {
@@ -1098,7 +1130,18 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
     private func handleFailedAssetLoading() {
         DispatchQueue.main.async { [weak self] in
-            self?.showNetworkError()
+            guard let self = self else { return }
+            
+            // Check if we have network before showing the error screen
+            if let networkMonitor = self.networkMonitor, networkMonitor.currentPath.status == .satisfied {
+                // We have internet but config loading failed, show QR scanner
+                print("[AR] Network available but config/asset loading failed - showing QR scanner")
+                self.presentQRScannerWithMessage()
+            } else {
+                // No internet, show network error
+                print("[AR] No network connection - showing network error")
+                self.showNetworkError()
+            }
         }
     }
 
@@ -1284,8 +1327,8 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         for anchor in anchors {
             guard let imageAnchor = anchor as? ARImageAnchor else { continue }
             
-                if !imageAnchor.isTracked && self.isImageTracked {
-                    // Image tracking is lost
+            if !imageAnchor.isTracked && self.isImageTracked {
+                // Image tracking is lost
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
                     
@@ -1296,20 +1339,20 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                         self.isImageTracked = false
                         self.showOverlay()
                         
-                            // Pause video playback
-                            if isUsingTransparentVideo {
-                                self.transparentVideoPlayer?.pause()
-                                print("[AR] Transparent video paused")
-                            } else if let player = self.videoPlayer {
+                        // Pause video playback
+                        if self.isUsingTransparentVideo {
+                            self.transparentVideoPlayer?.pause()
+                            print("[AR] Transparent video paused")
+                        } else if let player = self.videoPlayer {
                             player.pause()
                             print("[AR] Video paused")
                         }
                         
-                            // Do NOT hide the CTA button once it has been shown
-                            // The button should remain visible even when tracking is lost
+                        // Do NOT hide the CTA button once it has been shown
+                        // The button should remain visible even when tracking is lost
                     }
-                    }
-                } else if imageAnchor.isTracked && !self.isImageTracked {
+                }
+            } else if imageAnchor.isTracked && !self.isImageTracked {
                 // Image tracking is gained or regained
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
@@ -1319,33 +1362,42 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                     // Only perform actions if state has actually changed
                     if !self.isImageTracked {
                         self.isImageTracked = true
+                        
+                        // Add a small delay before hiding overlay to smooth transition
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            // Hide overlay
+                            self.hideOverlay()
                             
-                            // Add a small delay before hiding overlay to smooth transition
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                // Hide overlay
-                        self.hideOverlay()
-                        
-                                // Resume video playback
-                                if self.isUsingTransparentVideo {
-                                    self.transparentVideoPlayer?.play()
-                                    print("[AR] Transparent video playback started/resumed")
-                                } else if let player = self.videoPlayer {
-                            // Ensure playback starts from beginning if it's a new detection
-                            if player.currentTime() == .zero {
-                                player.seek(to: .zero)
-                            }
-                            player.play()
-                            print("[AR] Video playback started/resumed")
-                        } else {
-                            print("[AR] Cannot play video - player not initialized")
-                        }
-                        
-                                // Show the CTA button with a delay if it hasn't been shown yet
-                                if !self.hasShownCTAButton {
-                        print("[AR] 🔄 Showing CTA button after detection")
-                        self.showButtonWithDelay()
+                            // Resume video playback
+                            if self.isUsingTransparentVideo {
+                                if self.videoPlaneNode == nil {
+                                    print("[AR] ⚠️ No video plane found for transparent video")
+                                    // Try to recreate the video plane
+                                    if let imageAnchorNode = self.sceneView.node(for: imageAnchor) {
+                                        print("[AR] 🔄 Recreating video plane for anchor")
+                                        self.createVideoPlane(for: imageAnchorNode, with: imageAnchor)
+                                    }
                                 }
+                                
+                                self.transparentVideoPlayer?.play()
+                                print("[AR] Transparent video playback started/resumed")
+                            } else if let player = self.videoPlayer {
+                                // Ensure playback starts from beginning if it's a new detection
+                                if player.currentTime() == .zero {
+                                    player.seek(to: .zero)
+                                }
+                                player.play()
+                                print("[AR] Video playback started/resumed")
+                            } else {
+                                print("[AR] Cannot play video - player not initialized")
                             }
+                            
+                            // Show the CTA button with a delay if it hasn't been shown yet
+                            if !self.hasShownCTAButton {
+                                print("[AR] 🔄 Showing CTA button after detection")
+                                self.showButtonWithDelay()
+                            }
+                        }
                     }
                 }
             }
@@ -1430,6 +1482,10 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             videoPlaneNode?.removeFromParentNode()
             videoPlaneNode = nil
             
+            // Get dimensions from the detected image anchor
+            let imageSize = imageAnchor.referenceImage.physicalSize
+            print("[AR] 📏 Detected image anchor size: \(imageSize.width) x \(imageSize.height)")
+            
             // Create a plane with the proper dimensions
             let videoPlane = SCNPlane(width: self.videoPlaneWidth, height: self.videoPlaneHeight)
             
@@ -1447,6 +1503,10 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             
             // Position the node at the anchor's center
             planeNode.eulerAngles.x = -.pi / 2  // Rotate to face the camera
+            planeNode.position = SCNVector3Zero // Position at origin of the anchor
+            
+            // Debug the position
+            print("[AR] 📍 Video plane positioned at: \(planeNode.position)")
             
             // Store the plane node reference
             videoPlaneNode = planeNode
@@ -1949,20 +2009,29 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             
             // Load new configuration directly with ConfigManager
             ConfigManager.shared.loadConfig(folderID: folderID, configID: "sample_config") { [weak self] newConfig in
-                print("[AR] ✅ Received configuration:")
-                print("[AR] - targetImageURL: \(newConfig.targetImageURL)")
-                print("[AR] - videoURL: \(newConfig.videoURL)")
-                print("[AR] - ctaButtonText: '\(newConfig.ctaButtonText)'")
+                guard let self = self else { return }
                 
-                if newConfig.videoURL.contains("/ar/") && !newConfig.videoURL.contains("/ar1/") && folderID == "ar1" {
-                    print("[AR] ⚠️ WARNING: Config contains default 'ar' URLs instead of 'ar1'!")
-                }
-                
-                DispatchQueue.main.async {
-                    guard let self = self else { return }
-                    self.config = newConfig
-                    self.logConfig()
-                    self.applyConfig(newConfig)
+                // Check if the config has valid content or is empty (indicates failure)
+                if !newConfig.targetImageURL.isEmpty && !newConfig.videoURL.isEmpty {
+                    print("[AR] ✅ Received valid configuration:")
+                    print("[AR] - targetImageURL: \(newConfig.targetImageURL)")
+                    print("[AR] - videoURL: \(newConfig.videoURL)")
+                    print("[AR] - ctaButtonText: '\(newConfig.ctaButtonText)'")
+                    
+                    if newConfig.videoURL.contains("/ar/") && !newConfig.videoURL.contains("/ar1/") && folderID == "ar1" {
+                        print("[AR] ⚠️ WARNING: Config contains default 'ar' URLs instead of 'ar1'!")
+                    }
+                    
+                    DispatchQueue.main.async {
+                        self.config = newConfig
+                        self.logConfig()
+                        self.applyConfig(newConfig)
+                    }
+                } else {
+                    print("[AR] ❌ Received empty/invalid configuration, showing QR scanner")
+                    DispatchQueue.main.async {
+                        self.presentQRScannerWithMessage()
+                    }
                 }
             }
         } else {
@@ -2053,7 +2122,37 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         print("[AR] - loadingText: '\(config.loadingText)'")
     }
 
+    // MARK: - Present QR Scanner on Config Failure
+    private func presentQRScannerWithMessage() {
+        // Dismiss any presented view controllers first
+        if let presented = self.presentedViewController {
+            presented.dismiss(animated: false, completion: nil)
+        }
+        
+        let qrVC = QRViewController()
+        qrVC.modalPresentationStyle = .fullScreen
+        qrVC.modalTransitionStyle = .crossDissolve
+        self.present(qrVC, animated: true) {
+            // Show the message after presentation
+            qrVC.showUnsupportedQRCodeMessage()
+        }
+    }
 
+}
+
+// Add helper function to avoid the guard self issue
+extension ARContentView {
+    private func handleFallbackToStandardVideo(_ config: ARConfig, _ completion: @escaping () -> Void) {
+        // Reset transparent video flags
+        self.isUsingTransparentVideo = false
+        self.transparentVideoPlayer = nil
+        
+        if let videoURL = URL(string: config.videoRGBURL) {
+            self.loadStandardVideo(videoURL: videoURL, completion: completion)
+        } else {
+            completion()
+        }
+    }
 }
 
 

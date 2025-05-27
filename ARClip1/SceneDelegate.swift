@@ -367,17 +367,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             // If we haven't posted a notification yet
             if !UserDefaults.standard.bool(forKey: "config_notification_posted") {
                 self.logToFile("⚠️ [Request \(loadingID)] Configuration load timed out after 20s")
-                // Instead of posting a default config, present QR scanner and show message
-                DispatchQueue.main.async {
-                    if let window = self.window {
-                        let qrVC = QRViewController()
-                        qrVC.modalPresentationStyle = .fullScreen
-                        qrVC.modalTransitionStyle = .crossDissolve
-                        window.rootViewController?.present(qrVC, animated: true) {
-                            qrVC.showUnsupportedQRCodeMessage()
-                        }
-                    }
-                }
+                
+                // Use default configuration as fallback
+                let defaultConfig = ConfigManager.shared.defaultConfiguration(for: self.currentFolderID)
+                self.logToFile("🔄 [Request \(loadingID)] Using default configuration")
+                
+                // Post the default configuration
+                self.postConfigNotification(defaultConfig)
             }
         }
         
@@ -410,17 +406,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 // Log error
                 self.logToFile("❌ [Request \(loadingID)] Failed to load configuration: \(error.localizedDescription)")
                 
-                // Instead of posting a default config, present QR scanner and show message
-                DispatchQueue.main.async {
-                    if let window = self.window {
-                        let qrVC = QRViewController()
-                        qrVC.modalPresentationStyle = .fullScreen
-                        qrVC.modalTransitionStyle = .crossDissolve
-                        window.rootViewController?.present(qrVC, animated: true) {
-                            qrVC.showUnsupportedQRCodeMessage()
-                        }
-                    }
-                }
+                // Use default configuration
+                let defaultConfig = ConfigManager.shared.defaultConfiguration(for: self.currentFolderID)
+                self.logToFile("🔄 [Request \(loadingID)] Using default configuration")
+                
+                // Post the default configuration
+                self.postConfigNotification(defaultConfig)
             }
         }
     }

@@ -53,7 +53,7 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "_XCAppClipURL"
-            value = "https://adagxr.com/card/ar5"
+            value = "https://adagxr.com/card/ar4"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>
