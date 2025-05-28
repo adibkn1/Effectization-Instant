@@ -1,0 +1,16 @@
+version: "Apple Swift version 6.1 (swiftlang-6.1.0.110.21 clang-1700.0.13.3)"
+options: "bc0eaddd2e0f42f0d4059ee049946221abc7b3ad9c1102c1de73e126a1a944bb"
+build_start_time: [1748417123, 945179000]
+build_end_time: [1748417128, 152523000]
+inputs:
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ARClip1App.swift": [1748415457, 605425701]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ARContentView.swift": [1748417121, 961374999]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ConfigManager.swift": [1748411429, 259873521]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ContentView.swift": [1748353173, 697283223]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Extensions/URLExtensions.swift": [1748417123, 588435721]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/SceneDelegate.swift": [1748415457, 595639397]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/TransparentVideoPlayer.swift": [1748368608, 989974994]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/UIColorExtension.swift": [1748416509, 245540420]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/Effectization-Instant/ViewControllers/QRViewController.swift": [1748411122, 883959136]
+  ? "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/DerivedSources/GeneratedAssetSymbols.swift"
+  : [1748416462, 853674846]

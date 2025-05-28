@@ -1,0 +1,60 @@
+{
+  "" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ARClip1-master.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ARClip1-master.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ARClip1-master.dia",
+    "emit-module-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ARClip1-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ARClip1-master-emit-module.dia",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ARClip1-master.swiftdeps"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ARClip1App.swift" : {
+    "index-unit-output-path" : "/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ARClip1App.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ARClip1App.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ARClip1App.o"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ARContentView.swift" : {
+    "index-unit-output-path" : "/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ARContentView.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ARContentView.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ARContentView.o"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ConfigManager.swift" : {
+    "index-unit-output-path" : "/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ConfigManager.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ConfigManager.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ConfigManager.o"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ContentView.swift" : {
+    "index-unit-output-path" : "/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ContentView.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ContentView.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/ContentView.o"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Extensions/URLExtensions.swift" : {
+    "index-unit-output-path" : "/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/URLExtensions.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/URLExtensions.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/URLExtensions.o"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/SceneDelegate.swift" : {
+    "index-unit-output-path" : "/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/SceneDelegate.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/SceneDelegate.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/SceneDelegate.o"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/TransparentVideoPlayer.swift" : {
+    "index-unit-output-path" : "/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/TransparentVideoPlayer.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/TransparentVideoPlayer.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/TransparentVideoPlayer.o"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/UIColorExtension.swift" : {
+    "index-unit-output-path" : "/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/UIColorExtension.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/UIColorExtension.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/UIColorExtension.o"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/Effectization-Instant/ViewControllers/QRViewController.swift" : {
+    "index-unit-output-path" : "/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/QRViewController.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/QRViewController.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/QRViewController.o"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "index-unit-output-path" : "/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/x86_64/GeneratedAssetSymbols.o"
+  }
+}

@@ -3,49 +3,8 @@ import ARKit
 import SceneKit
 import AVFoundation
 import Network
-
-// This extension is already defined in UIColorExtension.swift, but with different implementation
-// Let's update it to match and handle double hash
-extension UIColor {
-    convenience init?(hex: String) {
-        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // Handle double hash (##hexvalue)
-        if hexSanitized.hasPrefix("##") {
-            hexSanitized = String(hexSanitized.dropFirst())
-        }
-        
-        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
-        
-        var rgb: UInt64 = 0
-        
-        guard Scanner(string: hexSanitized).scanHexInt64(&rgb) else { return nil }
-        
-        let red, green, blue, alpha: CGFloat
-        
-        switch hexSanitized.count {
-        case 6:
-            red = CGFloat((rgb & 0xFF0000) >> 16) / 255.0
-            green = CGFloat((rgb & 0x00FF00) >> 8) / 255.0
-            blue = CGFloat(rgb & 0x0000FF) / 255.0
-            alpha = 1.0
-            
-        case 8:
-            red = CGFloat((rgb & 0xFF000000) >> 24) / 255.0
-            green = CGFloat((rgb & 0x00FF0000) >> 16) / 255.0
-            blue = CGFloat((rgb & 0x0000FF00) >> 8) / 255.0
-            alpha = CGFloat(rgb & 0x000000FF) / 255.0
-            
-        default:
-            red = CGFloat((rgb & 0xFF0000) >> 16) / 255.0
-            green = CGFloat((rgb & 0x00FF00) >> 8) / 255.0
-            blue = CGFloat(rgb & 0x0000FF) / 255.0
-            alpha = 1.0
-        }
-        
-        self.init(red: red, green: green, blue: blue, alpha: alpha)
-    }
-}
+import UIKit  // Ensuring UIKit is in scope
+import Foundation
 
 struct ARContentView: UIViewControllerRepresentable {
     var launchURL: URL?
@@ -62,24 +21,17 @@ struct ARContentView: UIViewControllerRepresentable {
             finalURL = envURL
             
             // Try to extract folderID from environment URL
-            if let path = URLComponents(url: envURL, resolvingAgainstBaseURL: true)?.path {
-                let pathComponents = path.components(separatedBy: "/").filter { !$0.isEmpty }
-                print("[AR] Environment URL path components: \(pathComponents)")
-                if pathComponents.count >= 2 && pathComponents[0] == "card" {
-                    folderID = pathComponents[1]
-                    print("[AR] Extracted folderID from environment: \(folderID)")
-                }
+            if let id = envURL.extractFolderID() {
+                folderID = id
+                print("[AR] Extracted folderID from environment: \(folderID)")
             }
         }
         
         // If no environment URL, try launchURL
         if folderID == "ar", let url = launchURL {
-            if let path = URLComponents(url: url, resolvingAgainstBaseURL: true)?.path {
-                let pathComponents = path.components(separatedBy: "/").filter { !$0.isEmpty }
-                if pathComponents.count >= 2 && pathComponents[0] == "card" {
-                    folderID = pathComponents[1]
-                    print("[AR] Extracted folderID from launchURL: \(folderID)")
-                }
+            if let id = url.extractFolderID() {
+                folderID = id
+                print("[AR] Extracted folderID from launchURL: \(folderID)")
             }
         }
         
@@ -197,8 +149,8 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             
             // If we're still using the wrong folder based on environment or launch URL
             if let self = self, let url = self.launchURL {
-                let currentURLFolder = self.extractFolderIDFromURL(url) 
-                let configURLFolder = self.extractFolderIDFromConfigURL(self.config.targetImageURL)
+                let currentURLFolder = url.extractFolderID()
+                let configURLFolder = URL.extractFolderID(from: self.config.targetImageURL)
                 
                 print("[AR] 🔍 URL folder: \(currentURLFolder ?? "unknown"), Config folder: \(configURLFolder ?? "unknown")")
                 
@@ -216,46 +168,6 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
         
         checkCameraPermission()
-    }
-    
-    // Helper method to extract folderID from URL
-    private func extractFolderIDFromURL(_ url: URL) -> String? {
-        // Try path component extraction
-        let pathComponents = url.pathComponents.filter { !$0.isEmpty }
-        if pathComponents.contains("card") {
-            if let cardIndex = pathComponents.firstIndex(of: "card"), cardIndex + 1 < pathComponents.count {
-                return pathComponents[cardIndex + 1]
-            }
-        }
-        
-        // Try URL path extraction
-        if let path = URLComponents(url: url, resolvingAgainstBaseURL: true)?.path {
-            let pathComps = path.components(separatedBy: "/").filter { !$0.isEmpty }
-            if pathComps.count >= 2 && pathComps[0] == "card" {
-                return pathComps[1]
-            }
-        }
-        
-        // Try subdomain extraction
-        if let host = url.host, host.contains(".") {
-            let hostComponents = host.components(separatedBy: ".")
-            if hostComponents.count >= 3 && hostComponents[1] == "adagxr" {
-                return hostComponents[0]
-            }
-        }
-        
-        return nil
-    }
-    
-    // Helper method to extract folderID from config URL
-    private func extractFolderIDFromConfigURL(_ urlString: String) -> String? {
-        let components = urlString.components(separatedBy: "/")
-        for (index, component) in components.enumerated() {
-            if component == "card" && index + 1 < components.count {
-                return components[index + 1]
-            }
-        }
-        return nil
     }
     
     @objc private func configLoaded(_ notification: Notification) {
@@ -298,7 +210,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                     if let label = labels.first {
                         label.text = config.ctaButtonText
                         print("[AR] 📝 Updated CTA button text: \(config.ctaButtonText)")
-                } else {
+                    } else {
                         // If no label found, add one
                         let newLabel = UILabel()
                         newLabel.text = config.ctaButtonText
@@ -318,7 +230,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                     
                     // Update button color
                     let hexColor = config.ctaButtonColor.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-                    if let buttonColor = UIColor(hex: hexColor) {
+                    if let buttonColor = UIColor(hexString: hexColor) {
                         button.backgroundColor = buttonColor
                         print("[AR] 🎨 Updated button color: \(config.ctaButtonColor)")
                     }
@@ -331,7 +243,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                     print("[AR] Loading overlay image from: \(config.targetImageURL)")
                     URLSession.shared.dataTask(with: imageURL) { [weak self] data, response, error in
                         if let data = data, let image = UIImage(data: data) {
-            DispatchQueue.main.async {
+                            DispatchQueue.main.async {
                                 if let overlayImageView = self?.overlayImageView {
                                     overlayImageView.image = image
                                     print("[AR] ✅ Successfully loaded overlay image")
@@ -418,7 +330,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             // Show loading animation (only if UI is initialized)
             if loadingLabel != nil && loadingIndicator != nil {
                 showLoadingAnimation()
-                } else {
+            } else {
                 print("[AR] ⚠️ Cannot show loading animation - UI not initialized yet")
             }
             
@@ -426,7 +338,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             URLCache.shared.removeAllCachedResponses()
             UserDefaults.standard.removeObject(forKey: "config_cache_timestamp")
             UserDefaults.standard.removeObject(forKey: "cached_config")
-            print("[AR] 🧹 Cleared all caches before loading config")
+            print("[AR] �� Cleared all caches before loading config")
             
             // Explicitly log the expected config URL
             let configURL = "https://adagxr.com/card/\(folderID)/sample_config.json"
@@ -497,7 +409,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     override var shouldAutorotate: Bool {
         return false
     }
-
+    
     private func checkCameraPermission() {
         AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
             DispatchQueue.main.async {
@@ -506,7 +418,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                     self?.setupCameraFeed()
                 } else {
                     self?.showCameraPermissionAlert()
-        }
+                }
             }
         }
     }
@@ -657,7 +569,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 if self.overlayImageView.image == nil {
                     self.overlayImageView.image = uiImage
                     print("[AR] Set overlay image from reference image")
-    }
+                }
             }
 
             print("[AR] ✅ Reference image loaded successfully with dimensions: \(finalWidth) x \(finalHeight)")
@@ -675,9 +587,9 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             guard let rgbURL = URL(string: config.videoRGBURL),
                   let alphaURL = URL(string: config.videoAlphaURL) else {
                 print("[AR] ❌ Invalid RGB or Alpha URLs: \(config.videoRGBURL), \(config.videoAlphaURL)")
-            completion()
-            return
-        }
+                completion()
+                return
+            }
 
             // Create and set up transparent video player
             let transparentPlayer = TransparentVideoPlayer()
@@ -755,7 +667,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         
         // Create a uniquely named file based on the URL to avoid conflicts
-        let folderID = extractFolderIDFromConfigURL(config.videoRGBURL) ?? "video"
+        let folderID = URL.extractFolderID(from: config.videoRGBURL) ?? "video"
         let destinationURL = documentsPath.appendingPathComponent("\(folderID)_cached_video.mov")
         
         // Always ensure we can write a new file
@@ -889,9 +801,9 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 guard let self = self, 
                       let loadingLabel = self.loadingLabel else {
                     print("[AR] ⚠️ Cannot update loading state - UI not initialized")
-            return
-        }
-        
+                    return
+                }
+                
                 self.showLoadingAnimation()
                 loadingLabel.text = "Preparing AR experience..."
             }
@@ -976,8 +888,8 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                     print("[AR] Waiting for configuration before checking network requirement")
                     // Show loading state if we don't have a config yet
                     self.hideNetworkError()
+                }
             }
-        }
         }
         networkMonitor?.start(queue: DispatchQueue.global())
     }
@@ -1229,7 +1141,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             retryButton.widthAnchor.constraint(equalTo: noInternetView.widthAnchor, multiplier: 0.9),
             retryButton.heightAnchor.constraint(equalToConstant: 50)
         ])
-            }
+    }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
@@ -1246,14 +1158,14 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.runARSession()
             print("[AR] AR session started.")
-            }
+        }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         sceneView.session.pause()
         print("[AR] AR session paused.")
-        }
+    }
 
     func runARSession() {
         guard ARImageTrackingConfiguration.isSupported else {
@@ -1623,7 +1535,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         
         // Apply button color from config
         let hexColor = config.ctaButtonColor.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-        if let buttonColor = UIColor(hex: hexColor) {
+        if let buttonColor = UIColor(hexString: hexColor) {
             actionButton.backgroundColor = buttonColor
             print("[AR] Initial button color set: \(config.ctaButtonColor)")
         } else {
@@ -1795,7 +1707,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             
             // Update button color
             let hexColor = self.config.ctaButtonColor.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-            if let buttonColor = UIColor(hex: hexColor) {
+            if let buttonColor = UIColor(hexString: hexColor) {
                 self.actionButton.backgroundColor = buttonColor
                 print("[AR] 🎨 Updated button color to: \(self.config.ctaButtonColor)")
             }
@@ -1867,42 +1779,8 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         print("[AR] 🔍 path: \(url.path)")
         print("[AR] 🔍 pathComponents: \(url.pathComponents)")
         
-        // Extract folderID using multiple approaches
-        var extractedFolderID: String? = nil
-        
-        // Approach 1: Parse path components
-        if let path = URLComponents(url: url, resolvingAgainstBaseURL: true)?.path {
-            let pathComponents = path.components(separatedBy: "/").filter { !$0.isEmpty }
-            print("[AR] 🔍 URL path components: \(pathComponents)")
-            
-            if pathComponents.count >= 2 && pathComponents[0] == "card" {
-                extractedFolderID = pathComponents[1]
-                print("[AR] ✅ Extracted folderID from path: \(pathComponents[1])")
-            }
-        }
-        
-        // Approach 2: Check for card in pathComponents
-        if extractedFolderID == nil {
-            let pathComponents = url.pathComponents.filter { !$0.isEmpty }
-            if pathComponents.contains("card") {
-                if let cardIndex = pathComponents.firstIndex(of: "card"), cardIndex + 1 < pathComponents.count {
-                    extractedFolderID = pathComponents[cardIndex + 1]
-                    print("[AR] ✅ Extracted folderID using alternative path method: \(pathComponents[cardIndex + 1])")
-                }
-            }
-        }
-        
-        // Approach 3: Try subdomain extraction
-        if extractedFolderID == nil, let host = url.host, host.contains(".") {
-            let hostComponents = host.components(separatedBy: ".")
-            if hostComponents.count >= 3 && hostComponents[1] == "adagxr" {
-                extractedFolderID = hostComponents[0]
-                print("[AR] ✅ Extracted folderID from subdomain: \(hostComponents[0])")
-            }
-        }
-        
-        // If we found a folderID, use it
-        if let folderID = extractedFolderID {
+        // Extract folderID using URL extension
+        if let folderID = url.extractFolderID() {
             print("[AR] 🎯 FINAL FOLDER ID: \(folderID)")
             
             // Compare with our initial folderID
@@ -2003,7 +1881,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 
                 // Update button color
                 let hexColor = newConfig.ctaButtonColor.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-                if let buttonColor = UIColor(hex: hexColor) {
+                if let buttonColor = UIColor(hexString: hexColor) {
                     button.backgroundColor = buttonColor
                     print("[AR] Updated button color: \(newConfig.ctaButtonColor)")
                 }
@@ -2052,8 +1930,6 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         print("[AR] - overlayText: '\(config.overlayText)'")
         print("[AR] - loadingText: '\(config.loadingText)'")
     }
-
-
 }
 
 
