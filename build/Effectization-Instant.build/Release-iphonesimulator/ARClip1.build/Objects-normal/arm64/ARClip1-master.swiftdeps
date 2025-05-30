@@ -1,16 +1,17 @@
 version: "Apple Swift version 6.1 (swiftlang-6.1.0.110.21 clang-1700.0.13.3)"
 options: "0cd9a3cfcd577dc97bddfcab968cc56c59554eb85f58d8137fa45e5680e33809"
-build_start_time: [1748417123, 945179000]
-build_end_time: [1748417128, 151925000]
+build_start_time: [1748417787, 962555000]
+build_end_time: [1748417792, 271049000]
 inputs:
-  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ARClip1App.swift": [1748415457, 605425701]
-  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ARContentView.swift": [1748417121, 961374999]
-  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ConfigManager.swift": [1748411429, 259873521]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ARClip1App.swift": [1748417770, 656531940]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ARContentView.swift": [1748417600, 745492140]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ConfigManager.swift": [1748417636, 58969618]
   "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ContentView.swift": [1748353173, 697283223]
   "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Extensions/URLExtensions.swift": [1748417123, 588435721]
-  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/SceneDelegate.swift": [1748415457, 595639397]
-  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/TransparentVideoPlayer.swift": [1748368608, 989974994]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/SceneDelegate.swift": [1748417626, 431642193]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/TransparentVideoPlayer.swift": [1748417614, 174979936]
   "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/UIColorExtension.swift": [1748416509, 245540420]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Utils/ARLogger.swift": [1748417733, 294924745]
   "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/Effectization-Instant/ViewControllers/QRViewController.swift": [1748411122, 883959136]
   ? "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/DerivedSources/GeneratedAssetSymbols.swift"
   : [1748416462, 853674846]

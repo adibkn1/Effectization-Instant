@@ -6,7 +6,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     
     var window: UIWindow?
     var currentConfigID: String = "default"
-    var currentFolderID: String = "ar" // Default folder ID
+    var currentFolderID: String = ""  // No default folder ID
     var launchURL: URL?
     
     // Set up persistent logging
@@ -40,7 +40,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
     
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
-        print("[AR] Scene will connect")
+        ARLog.debug("Scene will connect")
         
         // Register for config reload requests
         NotificationCenter.default.addObserver(
@@ -56,127 +56,181 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window = UIWindow(windowScene: windowScene)
         
         var initialURL: URL? = nil
-        var folderID = "ar" // Default folder ID
         
         // FIRST: Check environment variables for debugging/App Clip
         // This is the highest priority source for the URL
-        if let envURL = ProcessInfo.processInfo.environment["_XCAppClipURL"],
-           let url = URL(string: envURL) {
-            print("[AR] 🔍 URL from environment (_XCAppClipURL): \(envURL)")
+        if let envURLString = ProcessInfo.processInfo.environment["_XCAppClipURL"],
+           let url = URL(string: envURLString) {
+            ARLog.debug("🔍 URL from environment (_XCAppClipURL): \(envURLString)")
             initialURL = url
-            
-            // Extract folder ID from URL
-            if let extractedFolderID = extractFolderIDFromURL(url) {
-                folderID = extractedFolderID
-                print("[AR] ✅ Extracted folderID from environment: \(folderID)")
-            } else {
-                print("[AR] ⚠️ Could not extract folderID from environment URL")
-            }
-            
-            handleURL(url)
         }
         
         // SECOND: Process URLs from connection options
-        if folderID == "ar", let url = connectionOptions.urlContexts.first?.url {
-            print("[AR] 🔍 URL from connection options: \(url.absoluteString)")
+        if initialURL == nil, let url = connectionOptions.urlContexts.first?.url {
+            ARLog.debug("🔍 URL from connection options: \(url.absoluteString)")
             initialURL = url
-            
-            // Extract folder ID from URL
-            if let extractedFolderID = extractFolderIDFromURL(url) {
-                folderID = extractedFolderID
-                print("[AR] ✅ Extracted folderID from URL context: \(folderID)")
-            } else {
-                print("[AR] ⚠️ Could not extract folderID from URL context")
-            }
-            
-            // Update internal state and continue with URL handling
-            handleURL(url)
         }
         
         // THIRD: Handle user activity if present
-        if folderID == "ar", let userActivity = connectionOptions.userActivities.first {
-            print("[AR] 🔍 User activity received: \(userActivity.activityType)")
-            if let url = userActivity.webpageURL {
-                print("[AR] 🔍 URL from user activity: \(url.absoluteString)")
+        if initialURL == nil, let userActivity = connectionOptions.userActivities.first,
+           let url = userActivity.webpageURL {
+            ARLog.debug("🔍 User activity received: \(userActivity.activityType)")
+            ARLog.debug("🔍 URL from user activity: \(url.absoluteString)")
                 initialURL = url
+        }
+        
+        // Check if we have a valid URL with folderID
+        guard let url = initialURL, let folder = url.extractFolderID() else {
+            if NetworkMonitor.shared.isConnected {
+                window?.rootViewController = QRViewController()
+                window?.makeKeyAndVisible()
+            } else {
+                // Delay 200ms before showing No-Internet
+                let placeholder = UIViewController()
+                window?.rootViewController = placeholder
+                window?.makeKeyAndVisible()
                 
-                // Extract folder ID from URL
-                if let extractedFolderID = extractFolderIDFromURL(url) {
-                    folderID = extractedFolderID
-                    print("[AR] ✅ Extracted folderID from user activity: \(folderID)")
-                } else {
-                    print("[AR] ⚠️ Could not extract folderID from user activity")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    // If network still offline after delay
+                    if !NetworkMonitor.shared.isConnected {
+                        self.window?.rootViewController = NoInternetViewController(initialLink: nil)
+                    }
                 }
-                
-                handleURL(url)
+            }
+            return
+        }
+        
+        // We have a valid folderID
+        if NetworkMonitor.shared.isConnected {
+            let ar = ARViewController(folderID: folder)
+            ar.launchURL = url
+            window?.rootViewController = ar
+        } else {
+            // Delay 200ms before showing No-Internet
+            let placeholder = UIViewController()
+            window?.rootViewController = placeholder
+            window?.makeKeyAndVisible()
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                // If network still offline after delay
+                if !NetworkMonitor.shared.isConnected {
+                    self.window?.rootViewController = NoInternetViewController(initialLink: url)
+                }
             }
         }
-        
-        // Set current folder ID from extraction result
-        currentFolderID = folderID
-        print("[AR] 🚀 Using folderID: \(folderID) for view controller creation")
-        
-        // Create and set root view controller with extracted folderID
-        let arViewController = ARViewController(folderID: folderID)
-        
-        // Set the URL after initialization so it can handle any additional processing
-        if let url = initialURL {
-            arViewController.launchURL = url
-        }
-        
-        window?.rootViewController = arViewController
         window?.makeKeyAndVisible()
     }
     
-    // Helper method to extract folderID from URL
-    private func extractFolderIDFromURL(_ url: URL) -> String? {
-        // Try path component extraction first
-        let pathComponents = url.pathComponents.filter { !$0.isEmpty }
-        if pathComponents.contains("card") {
-            if let cardIndex = pathComponents.firstIndex(of: "card"), cardIndex + 1 < pathComponents.count {
-                return pathComponents[cardIndex + 1]
-            }
-        }
-        
-        // Try URL path extraction
-        if let path = URLComponents(url: url, resolvingAgainstBaseURL: true)?.path {
-            let pathComps = path.components(separatedBy: "/").filter { !$0.isEmpty }
-            if pathComps.count >= 2 && pathComps[0] == "card" {
-                return pathComps[1]
-            }
-        }
-        
-        // Try subdomain extraction
-        if let host = url.host, host.contains(".") {
-            let hostComponents = host.components(separatedBy: ".")
-            if hostComponents.count >= 3 && hostComponents[1] == "adagxr" {
-                return hostComponents[0]
-            }
-        }
-        
-        return nil
-    }
-    
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
-        print("[AR] Scene continue user activity: \(userActivity.activityType)")
-        if let url = userActivity.webpageURL {
-            print("[AR] URL from user activity: \(url.absoluteString)")
-            if let arViewController = window?.rootViewController as? ARViewController {
-                arViewController.launchURL = url
-            }
-            handleURL(url)
+        ARLog.debug("Scene continue user activity: \(userActivity.activityType)")
+        
+        var incomingURL: URL? = nil
+        
+        if userActivity.activityType == NSUserActivityTypeBrowsingWeb {
+            incomingURL = userActivity.webpageURL
+        } else if let inputURL = userActivity.userInfo?["url"] as? URL {
+            incomingURL = inputURL
         }
+        
+        guard let url = incomingURL, let folder = url.extractFolderID() else {
+            if NetworkMonitor.shared.isConnected {
+                window?.rootViewController = QRViewController()
+                window?.makeKeyAndVisible()
+            } else {
+                // Delay 200ms before showing No-Internet
+                let placeholder = UIViewController()
+                window?.rootViewController = placeholder
+                window?.makeKeyAndVisible()
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    // If network still offline after delay
+                    if !NetworkMonitor.shared.isConnected {
+                        self.window?.rootViewController = NoInternetViewController(initialLink: nil)
+            }
+        }
+            }
+            return
+        }
+        
+        if NetworkMonitor.shared.isConnected {
+            let ar = ARViewController(folderID: folder)
+            ar.launchURL = url
+            window?.rootViewController = ar
+        } else {
+            // Delay 200ms before showing No-Internet
+            let placeholder = UIViewController()
+            window?.rootViewController = placeholder
+            window?.makeKeyAndVisible()
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                // If network still offline after delay
+                if !NetworkMonitor.shared.isConnected {
+                    self.window?.rootViewController = NoInternetViewController(initialLink: url)
+                }
+            }
+        }
+        window?.makeKeyAndVisible()
     }
     
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
-        print("[AR] Scene open URL contexts")
-        if let url = URLContexts.first?.url {
-            print("[AR] URL from contexts: \(url.absoluteString)")
-            if let arViewController = window?.rootViewController as? ARViewController {
-                arViewController.launchURL = url
+        ARLog.debug("Scene open URL contexts")
+        
+        guard let url = URLContexts.first?.url, let folder = url.extractFolderID() else {
+            if NetworkMonitor.shared.isConnected {
+                window?.rootViewController = QRViewController()
+                window?.makeKeyAndVisible()
+            } else {
+                // Delay 200ms before showing No-Internet
+                let placeholder = UIViewController()
+                window?.rootViewController = placeholder
+                window?.makeKeyAndVisible()
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    // If network still offline after delay
+                    if !NetworkMonitor.shared.isConnected {
+                        self.window?.rootViewController = NoInternetViewController(initialLink: nil)
+                    }
+                }
             }
-            handleURL(url)
+            return
         }
+        
+        if NetworkMonitor.shared.isConnected {
+            let ar = ARViewController(folderID: folder)
+            ar.launchURL = url
+            window?.rootViewController = ar
+        } else {
+            // Delay 200ms before showing No-Internet
+            let placeholder = UIViewController()
+            window?.rootViewController = placeholder
+            window?.makeKeyAndVisible()
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                // If network still offline after delay
+                if !NetworkMonitor.shared.isConnected {
+                    self.window?.rootViewController = NoInternetViewController(initialLink: url)
+                }
+            }
+        }
+        window?.makeKeyAndVisible()
+    }
+    
+    // New method to handle URL with validated folderID
+    private func processURLWithFolderID(_ url: URL, folderID: String) {
+        logToFile("📱 Processing URL with valid folderID: \(folderID)")
+        
+        // Update app state
+        currentFolderID = folderID
+        currentConfigID = "ar-img-config"
+        
+        // Clear caches
+        URLCache.shared.removeAllCachedResponses()
+        
+        // Notify observers of folder ID change
+        NotificationCenter.default.post(name: NSNotification.Name("UpdateFolderID"), object: nil)
+        
+        // Load configuration
+        loadConfigForFolder(folderID)
     }
     
     private func handleURL(_ url: URL) {
@@ -190,67 +244,16 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         logToFile("🔍 pathComponents: \(url.pathComponents)")
         logToFile("🔍 filtered pathComponents: \(url.pathComponents.filter { !$0.isEmpty })")
         
-        // Extract folder ID from URL path using improved method
-        let pathComponents = url.pathComponents.filter { !$0.isEmpty }
-        
-        // For URLs with 'card' in the path (e.g., /card/ar1/)
-        if pathComponents.contains("card") {
-            if let cardIndex = pathComponents.firstIndex(of: "card"), cardIndex + 1 < pathComponents.count {
-                // Get the folder ID (ar1, ar2, etc.)
-                let folderID = pathComponents[cardIndex + 1]
-                logToFile("✅ Extracted folderID from path: \(folderID)")
-                
-                // Update app state
-                currentFolderID = folderID
-                currentConfigID = "sample_config"
-                
-                // Clear caches
-                URLCache.shared.removeAllCachedResponses()
-                
-                logToFile("🔄 Updated app state with folderID: \(folderID)")
-                
-                // Notify observers of folder ID change
-                NotificationCenter.default.post(name: NSNotification.Name("UpdateFolderID"), object: nil)
-                
-                // Load configuration
-                loadAndApplyConfig()
-                return
+        // Extract folder ID using URL extension
+        if let folderID = url.extractFolderID() {
+            logToFile("✅ Extracted folderID: \(folderID)")
+            processURLWithFolderID(url, folderID: folderID)
+        } else {
+            logToFile("⚠️ Could not extract folderID, showing QR scanner")
+            DispatchQueue.main.async {
+                self.window?.rootViewController = QRViewController()
             }
         }
-        
-        // Try to extract from host if it's a subdomain
-        if let host = url.host, host.contains(".") {
-            let hostComponents = host.components(separatedBy: ".")
-            if hostComponents.count >= 3 && hostComponents[1] == "adagxr" {
-                let possibleFolderID = hostComponents[0]
-                logToFile("✅ Extracted folderID from subdomain: \(possibleFolderID)")
-                
-                // Update app state
-                currentFolderID = possibleFolderID
-                currentConfigID = "sample_config"
-                
-                // Clear caches
-                URLCache.shared.removeAllCachedResponses()
-                
-                // Notify observers
-                NotificationCenter.default.post(name: NSNotification.Name("UpdateFolderID"), object: nil)
-                
-                // Load configuration
-                loadAndApplyConfig()
-                return
-            }
-        }
-        
-        // Fallback to default folder ID
-        logToFile("⚠️ Could not extract folderID, using default")
-        currentFolderID = "ar"
-        currentConfigID = "sample_config"
-        
-        // Notify observers
-        NotificationCenter.default.post(name: NSNotification.Name("UpdateFolderID"), object: nil)
-        
-        // Load configuration
-        loadAndApplyConfig()
     }
     
     private func handleUserActivity(_ userActivity: NSUserActivity) {
@@ -270,36 +273,15 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         }
         
         guard let finalURL = incomingURL else { 
-            logToFile("❌ Missing URL from any source")
-            loadAndApplyConfig() // Load with default settings
-            return
-        }
-        
-        logToFile("🌐 App Clip processing URL: \(finalURL.absoluteString)")
-        
-        // Special handling for development testing with appclip:// scheme
-        if finalURL.scheme == "appclip" {
-            logToFile("🧪 Development testing mode with appclip:// scheme")
-            let path = finalURL.path
-            
-            // Handle the special case where we need to extract from the host instead
-            var pathToUse = path
-            if path.isEmpty && finalURL.host != nil {
-                pathToUse = "/\(finalURL.host!)\(path)"
-                logToFile("🧪 Using host as part of path: \(pathToUse)")
+            logToFile("❌ Missing URL from any source, showing QR scanner")
+            DispatchQueue.main.async {
+                self.window?.rootViewController = QRViewController()
             }
-            
-            handlePath(pathToUse)
             return
         }
         
-        // Normal URL handling
-        if let path = URLComponents(url: finalURL, resolvingAgainstBaseURL: true)?.path {
-            handlePath(path)
-        } else {
-            logToFile("⚠️ Could not extract path from URL")
-            loadAndApplyConfig() // Load with default settings
-        }
+        // Process the URL without falling back to defaults
+        handleURL(finalURL)
     }
     
     private func handlePath(_ path: String) {
@@ -312,53 +294,35 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             // Set the folder ID (ar1, ar2, etc.)
             currentFolderID = pathComponents[1]
             logToFile("🏷️ Set folderID to: \(currentFolderID)")
-            logToFile("📂 Will load config from: https://adagxr.com/card/\(currentFolderID)/")
             
             // If there's a third component, use it as the config ID
             if pathComponents.count >= 3 {
                 currentConfigID = pathComponents[2]
                 logToFile("🏷️ Set configID to: \(currentConfigID) from path component")
             } else {
-                // If no specific config, default to "sample_config"
-                currentConfigID = "sample_config"
-                logToFile("🏷️ No config in path, defaulting to: \(currentConfigID)")
+                // If no specific config, default to "ar-img-config"
+                currentConfigID = "ar-img-config"
+                logToFile("🏷️ No config in path, using: \(currentConfigID)")
             }
-        } else if pathComponents.count <= 1 {
-            // Handle the case where the URL is just /card or / without a specific folder ID
-            // In this case, use ar as the default folder ID
-            currentFolderID = "ar" // Default to ar when no folder ID is specified
-            currentConfigID = "sample_config"
-            logToFile("⚠️ Path only contains 'card' or empty, defaulting folderID to: \(currentFolderID)")
-            logToFile("📂 Will load config from: https://adagxr.com/card/\(currentFolderID)/")
+            
+            // Load configuration
+            loadConfigForFolder(currentFolderID)
         } else {
-            logToFile("⚠️ Path does not contain expected 'card/[folderID]' format")
-            // Default to ar as a fallback for any unexpected path format
-            currentFolderID = "ar" 
-            currentConfigID = "sample_config"
-            logToFile("🔄 Falling back to default folderID: \(currentFolderID)")
+            // Invalid path format, show QR scanner
+            logToFile("⚠️ Invalid path format, showing QR scanner")
+            DispatchQueue.main.async {
+                self.window?.rootViewController = QRViewController()
+            }
         }
-        
-        logToFile("📋 FINAL CONFIG: Using folder ID: \(currentFolderID), config ID: \(currentConfigID)")
-        
-        // Load configuration and update the AR experience
-        loadAndApplyConfig()
     }
     
-    private func loadAndApplyConfig() {
-        logToFile("⏳ Starting config load for folderID=\(currentFolderID)")
-        logToFile("🔍 CURRENT STATE: folderID='\(currentFolderID)', configID='\(currentConfigID)'")
+    // Method to load config for a specific folder
+    private func loadConfigForFolder(_ folderID: String) {
+        logToFile("⏳ Loading config for folderID=\(folderID)")
         
         // Clear caches before loading
         URLCache.shared.removeAllCachedResponses()
         UserDefaults.standard.removeObject(forKey: "config_notification_posted")
-        
-        // Set loading state
-        let loadingID = String(UUID().uuidString.prefix(6))
-        logToFile("🔄 [Request \(loadingID)] Loading configuration")
-        
-        // DEBUG: Log what config URL should be loaded
-        let expectedURL = "https://adagxr.com/card/\(currentFolderID)/sample_config.json"
-        logToFile("🔍 Expected config URL: \(expectedURL)")
         
         // Create a timeout mechanism
         let timeoutTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: false) { [weak self] _ in
@@ -366,19 +330,17 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             
             // If we haven't posted a notification yet
             if !UserDefaults.standard.bool(forKey: "config_notification_posted") {
-                self.logToFile("⚠️ [Request \(loadingID)] Configuration load timed out after 20s")
+                self.logToFile("⚠️ Configuration load timed out after 20s, showing QR scanner")
                 
-                // Use default configuration as fallback
-                let defaultConfig = ConfigManager.shared.defaultConfiguration(for: self.currentFolderID)
-                self.logToFile("🔄 [Request \(loadingID)] Using default configuration")
-                
-                // Post the default configuration
-                self.postConfigNotification(defaultConfig)
+                // Show QR scanner on timeout
+                DispatchQueue.main.async {
+                    self.window?.rootViewController = QRViewController()
+                }
             }
         }
         
-        // Load configuration using new ConfigManager
-        ConfigManager.shared.loadConfiguration(folderID: currentFolderID) { [weak self] result in
+        // Load configuration using ConfigManager
+        ConfigManager.shared.loadConfiguration(folderID: folderID) { [weak self] result in
             guard let self = self else { return }
             
             // Cancel timeout timer
@@ -393,25 +355,21 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             switch result {
             case .success(let config):
                 // Log successful configuration
-                self.logToFile("✅ [Request \(loadingID)] Configuration loaded successfully")
-                self.logToFile("📋 targetImageURL: \(config.targetImageURL)")
+                self.logToFile("✅ Configuration loaded successfully")
+                self.logToFile("📋 targetImageUrl: \(config.targetImageUrl)")
                 self.logToFile("📋 videoURL: \(config.videoURL)")
-                self.logToFile("📋 Button text: '\(config.ctaButtonText)'")
-                self.logToFile("📋 Overlay text: '\(config.overlayText)'")
                 
                 // Post notification with config
                 self.postConfigNotification(config)
                 
             case .failure(let error):
                 // Log error
-                self.logToFile("❌ [Request \(loadingID)] Failed to load configuration: \(error.localizedDescription)")
+                self.logToFile("❌ Failed to load configuration: \(error.localizedDescription)")
                 
-                // Use default configuration
-                let defaultConfig = ConfigManager.shared.defaultConfiguration(for: self.currentFolderID)
-                self.logToFile("🔄 [Request \(loadingID)] Using default configuration")
-                
-                // Post the default configuration
-                self.postConfigNotification(defaultConfig)
+                // Show QR scanner on failure
+                DispatchQueue.main.async {
+                    self.window?.rootViewController = QRViewController()
+                }
             }
         }
     }
@@ -458,13 +416,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         if let folderID = notification.userInfo?["folderID"] as? String {
             logToFile("🔄 Will reload config with specified folderID: \(folderID)")
             currentFolderID = folderID
-        }
         
         // Clear the notification posted flag so we can post a new notification
         UserDefaults.standard.removeObject(forKey: "config_notification_posted")
         
         // Reload config
-        loadAndApplyConfig()
+            loadConfigForFolder(folderID)
+        } else {
+            logToFile("⚠️ No folderID specified in reload request, showing QR scanner")
+            DispatchQueue.main.async {
+                self.window?.rootViewController = QRViewController()
+            }
+        }
     }
     
     func sceneDidDisconnect(_ scene: UIScene) {

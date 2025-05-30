@@ -120,19 +120,19 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     
     // MARK: - Configuration
     private var config: ARConfig = ARConfig(
-        targetImageURL: "",
+        targetImageUrl: "",
         videoURL: "",
-        hasTransparency: false,
-        videoRGBURL: "",
-        videoAlphaURL: "",
+        videoWithTransparency: false,
+        videoRgbUrl: "",
+        videoAlphaUrl: "",
         videoPlaneWidth: 1.0,
         videoPlaneHeight: 1.41431,
         addedWidth: 1.0,
         addedHeight: 1.0,
-        ctaButtonText: "Learn More",
-        ctaButtonColor: "#F84B07",
+        ctaButtonText: "",
+        ctaButtonColorHex: "#F84B07",
         ctaButtonURL: "https://effectizationstudio.com",
-        ctaButtonDelay: 1.0,
+        ctaDelayMs: 1.0,
         overlayText: "Scan this image",
         loadingText: "Preparing your experience"
     )
@@ -181,7 +181,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         
         // Log initial config values
         print("[AR] Initializing AR view with folderID: \(initialFolderID)")
-        print("[AR] Initial config set with targetImageURL: \(config.targetImageURL)")
+        print("[AR] Initial config set with targetImageUrl: \(config.targetImageUrl)")
         logConfig()
         
         // Register for config notifications
@@ -216,7 +216,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             // If we're still using the wrong folder based on environment or launch URL
             if let self = self, let url = self.launchURL {
                 let currentURLFolder = self.extractFolderIDFromURL(url) 
-                let configURLFolder = self.extractFolderIDFromConfigURL(self.config.targetImageURL)
+                let configURLFolder = self.extractFolderIDFromConfigURL(self.config.targetImageUrl)
                 
                 print("[AR] 🔍 URL folder: \(currentURLFolder ?? "unknown"), Config folder: \(configURLFolder ?? "unknown")")
                 
@@ -281,10 +281,10 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 
-                let isNewConfig = self.config.targetImageURL != config.targetImageURL
+                let isNewConfig = self.config.targetImageUrl != config.targetImageUrl
                 print("[AR] 🔍 CONFIG DIAGNOSIS:")
-                print("[AR] 🔍 Previous targetImageURL: \(self.config.targetImageURL)")
-                print("[AR] 🔍 New targetImageURL: \(config.targetImageURL)")
+                print("[AR] 🔍 Previous targetImageUrl: \(self.config.targetImageUrl)")
+                print("[AR] 🔍 New targetImageUrl: \(config.targetImageUrl)")
                 print("[AR] 🔍 Is new config: \(isNewConfig)")
                 print("[AR] 🔍 Button text: '\(config.ctaButtonText)'")
                 print("[AR] 🔍 Video URL: \(config.videoURL)")
@@ -335,18 +335,18 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                     }
                     
                     // Update button color
-                    let hexColor = config.ctaButtonColor.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+                    let hexColor = config.ctaButtonColorHex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
                     if let buttonColor = UIColor(hex: hexColor) {
                         button.backgroundColor = buttonColor
-                        print("[AR] 🎨 Updated button color: \(config.ctaButtonColor)")
+                        print("[AR] 🎨 Updated button color: \(config.ctaButtonColorHex)")
                     }
                 } else {
                     print("[AR] ⚠️ Button not yet initialized")
                 }
                 
                 // Load overlay image from config URL
-                if let imageURL = URL(string: config.targetImageURL) {
-                    print("[AR] Loading overlay image from: \(config.targetImageURL)")
+                if let imageURL = URL(string: config.targetImageUrl) {
+                    print("[AR] Loading overlay image from: \(config.targetImageUrl)")
                     URLSession.shared.dataTask(with: imageURL) { [weak self] data, response, error in
                         if let data = data, let image = UIImage(data: data) {
             DispatchQueue.main.async {
@@ -399,8 +399,8 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             
             // Clear the configuration values but don't assign a new default config
             // Just keep the current config structure
-            print("[AR] Updated config with new folderID: \(folderID), targetImageURL: \(config.targetImageURL)")
-            print("[AR] New config - hasTransparency: \(config.hasTransparency), videoRGBURL: \(config.videoRGBURL)")
+            print("[AR] Updated config with new folderID: \(folderID), targetImageUrl: \(config.targetImageUrl)")
+            print("[AR] New config - videoWithTransparency: \(config.videoWithTransparency), videoRgbUrl: \(config.videoRgbUrl)")
             
             // Reset loading state
             self.loadingLabel.text = config.loadingText
@@ -447,7 +447,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             print("[AR] 🧹 Cleared all caches before loading config")
             
             // Explicitly log the expected config URL
-            let configURL = "https://adagxr.com/card/\(folderID)/sample_config.json"
+            let configURL = "https://adagxr.com/card/\(folderID)/ar-img-config.json"
             print("[AR] 🔍 Will load configuration from \(configURL)")
             
             // Add cache-busting timestamp
@@ -461,7 +461,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 switch result {
                 case .success(let config):
                     print("[AR] ✅ Successfully loaded configuration:")
-                    print("[AR] - targetImageURL: \(config.targetImageURL)")
+                    print("[AR] - targetImageUrl: \(config.targetImageUrl)")
                     print("[AR] - videoURL: \(config.videoURL)")
                     print("[AR] - ctaButtonText: '\(config.ctaButtonText)'")
                     
@@ -568,12 +568,12 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     }
     
     private func startAssetLoading() {
-        guard !config.targetImageURL.isEmpty else {
-            print("[AR] ❌ Cannot start asset loading: targetImageURL is empty")
+        guard !config.targetImageUrl.isEmpty else {
+            print("[AR] ❌ Cannot start asset loading: targetImageUrl is empty")
             return
         }
         
-        print("[AR] Starting asset loading with config: \(config.targetImageURL)")
+        print("[AR] Starting asset loading with config: \(config.targetImageUrl)")
         
         // Log the current configuration
         logConfig()
@@ -621,13 +621,13 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     }
     
     private func loadReferenceImage(completion: @escaping (Bool) -> Void) {
-        guard let imageURL = URL(string: config.targetImageURL) else {
-            print("[AR] Invalid image URL: \(config.targetImageURL)")
+        guard let imageURL = URL(string: config.targetImageUrl) else {
+            print("[AR] Invalid image URL: \(config.targetImageUrl)")
             completion(false)
             return
         }
         
-        print("[AR] Loading reference image from: \(config.targetImageURL)")
+        print("[AR] Loading reference image from: \(config.targetImageUrl)")
         let task = URLSession.shared.dataTask(with: imageURL) { [weak self] data, response, error in
             guard let self = self,
                   let data = data,
@@ -681,13 +681,13 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     
     private func preloadVideo(completion: @escaping () -> Void) {
         // Check if we should use transparent video mode
-        if config.hasTransparency {
+        if config.videoWithTransparency {
             print("[AR] 🎬 Using transparent video mode with separate RGB+Alpha videos")
             
             // Create URLs for RGB and Alpha videos
-            guard let rgbURL = URL(string: config.videoRGBURL),
-                  let alphaURL = URL(string: config.videoAlphaURL) else {
-                print("[AR] ❌ Invalid RGB or Alpha URLs: \(config.videoRGBURL), \(config.videoAlphaURL)")
+            guard let rgbURL = URL(string: config.videoRgbUrl),
+                  let alphaURL = URL(string: config.videoAlphaUrl) else {
+                print("[AR] ❌ Invalid RGB or Alpha URLs: \(config.videoRgbUrl), \(config.videoAlphaUrl)")
                 completion()
                 return
             }
@@ -725,7 +725,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                     self.transparentVideoPlayer = nil
                     
                     // Fall back to standard video if available
-                    if let videoURL = URL(string: self.config.videoRGBURL) {
+                    if let videoURL = URL(string: self.config.videoRgbUrl) {
                         self.loadStandardVideo(videoURL: videoURL, completion: completion)
                     } else {
                         completion()
@@ -745,7 +745,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                         weakSelf.isUsingTransparentVideo = false
                         weakSelf.transparentVideoPlayer = nil
                         
-                        if let videoURL = URL(string: weakSelf.config.videoRGBURL) {
+                        if let videoURL = URL(string: weakSelf.config.videoRgbUrl) {
                             self.loadStandardVideo(videoURL: videoURL, completion: completion)
                         } else {
                             completion()
@@ -758,8 +758,8 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
         
         // Standard video mode (non-transparent) - use RGB HLS stream
-        guard let videoURL = URL(string: self.config.videoRGBURL) else {
-            print("[AR] Invalid video RGB URL: \(config.videoRGBURL)")
+        guard let videoURL = URL(string: self.config.videoRgbUrl) else {
+            print("[AR] Invalid video RGB URL: \(config.videoRgbUrl)")
             completion()
             return
         }
@@ -786,7 +786,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         
         // Create a uniquely named file based on the URL to avoid conflicts
-        let folderID = extractFolderIDFromConfigURL(config.videoRGBURL) ?? "video"
+        let folderID = extractFolderIDFromConfigURL(config.videoRgbUrl) ?? "video"
         let destinationURL = documentsPath.appendingPathComponent("\(folderID)_cached_video.mov")
         
         // Always ensure we can write a new file
@@ -1055,10 +1055,10 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         // Ensure we're showing the loading state
         hideNetworkError()
         
-        print("[AR] Retrying asset loading with config: \(config.targetImageURL)")
+        print("[AR] Retrying asset loading with config: \(config.targetImageUrl)")
         
         // First check if we have valid config
-        if config.targetImageURL.isEmpty || config.videoURL.isEmpty {
+        if config.targetImageUrl.isEmpty || config.videoURL.isEmpty {
             print("[AR] Cannot load assets without valid config")
             return
         }
@@ -1566,7 +1566,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         videoMaterial.isDoubleSided = true
         
         // Set transparency mode based on config
-        if config.hasTransparency {
+        if config.videoWithTransparency {
             // Enable transparency for alpha channel support
             videoMaterial.transparencyMode = .dualLayer
             videoMaterial.blendMode = .alpha
@@ -1580,7 +1580,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         
         // Print debug info about the plane and material
         print("[AR] 📐 Creating video plane with dimensions: \(videoPlaneWidth) x \(videoPlaneHeight)")
-        print("[AR] 🎥 Setting video player as plane material contents, hasTransparency: \(config.hasTransparency)")
+        print("[AR] 🎥 Setting video player as plane material contents, videoWithTransparency: \(config.videoWithTransparency)")
         
         // Apply the material to the plane
         videoPlane.materials = [videoMaterial]
@@ -1682,10 +1682,10 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         actionButton.translatesAutoresizingMaskIntoConstraints = false
         
         // Apply button color from config
-        let hexColor = config.ctaButtonColor.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        let hexColor = config.ctaButtonColorHex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         if let buttonColor = UIColor(hex: hexColor) {
             actionButton.backgroundColor = buttonColor
-            print("[AR] Initial button color set: \(config.ctaButtonColor)")
+            print("[AR] Initial button color set: \(config.ctaButtonColorHex)")
         } else {
         actionButton.backgroundColor = UIColor(red: 248/255, green: 75/255, blue: 7/255, alpha: 1.0)
             print("[AR] Using default button color")
@@ -1841,7 +1841,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
         
         // Use delay from config
-        print("[AR] 🔘 Will show CTA button after \(config.ctaButtonDelay) seconds with text: '\(config.ctaButtonText)'")
+        print("[AR] 🔘 Will show CTA button after \(config.ctaDelayMs) seconds with text: '\(config.ctaButtonText)'")
         
         // Ensure button text is updated with config value
         DispatchQueue.main.async { [weak self] in
@@ -1854,18 +1854,18 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             }
             
             // Update button color
-            let hexColor = self.config.ctaButtonColor.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+            let hexColor = self.config.ctaButtonColorHex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
             if let buttonColor = UIColor(hex: hexColor) {
                 self.actionButton.backgroundColor = buttonColor
-                print("[AR] 🎨 Updated button color to: \(self.config.ctaButtonColor)")
+                print("[AR] 🎨 Updated button color to: \(self.config.ctaButtonColorHex)")
             }
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + config.ctaButtonDelay) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + config.ctaDelayMs) { [weak self] in
             guard let self = self else { return }
             self.hasShownCTAButton = true
             self.actionButton.isHidden = false
-            print("[AR] 👆 Button displayed after delay: \(self.config.ctaButtonDelay) seconds.")
+            print("[AR] 👆 Button displayed after delay: \(self.config.ctaDelayMs) seconds.")
         }
     }
 
@@ -2000,7 +2000,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             print("[AR] 🧹 Cleared all caches")
             
             // Explicitly log the expected config URL
-            let configURL = "https://adagxr.com/card/\(folderID)/sample_config.json"
+            let configURL = "https://adagxr.com/card/\(folderID)/ar-img-config.json"
             print("[AR] 🔍 Will load configuration from \(configURL)")
             
             // Add cache-busting timestamp to URL
@@ -2008,13 +2008,13 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             print("[AR] ⏰ Added cache-busting timestamp: \(timestamp)")
             
             // Load new configuration directly with ConfigManager
-            ConfigManager.shared.loadConfig(folderID: folderID, configID: "sample_config") { [weak self] newConfig in
+            ConfigManager.shared.loadConfig(folderID: folderID, configID: "ar-img-config") { [weak self] newConfig in
                 guard let self = self else { return }
                 
                 // Check if the config has valid content or is empty (indicates failure)
-                if !newConfig.targetImageURL.isEmpty && !newConfig.videoURL.isEmpty {
+                if !newConfig.targetImageUrl.isEmpty && !newConfig.videoURL.isEmpty {
                     print("[AR] ✅ Received valid configuration:")
-                    print("[AR] - targetImageURL: \(newConfig.targetImageURL)")
+                    print("[AR] - targetImageUrl: \(newConfig.targetImageUrl)")
                     print("[AR] - videoURL: \(newConfig.videoURL)")
                     print("[AR] - ctaButtonText: '\(newConfig.ctaButtonText)'")
                     
@@ -2071,16 +2071,16 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 }
                 
                 // Update button color
-                let hexColor = newConfig.ctaButtonColor.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+                let hexColor = newConfig.ctaButtonColorHex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
                 if let buttonColor = UIColor(hex: hexColor) {
                     button.backgroundColor = buttonColor
-                    print("[AR] Updated button color: \(newConfig.ctaButtonColor)")
+                    print("[AR] Updated button color: \(newConfig.ctaButtonColorHex)")
                 }
             }
             
             // Load overlay image from new config URL
-            if let overlayImageView = self.overlayImageView, let imageURL = URL(string: newConfig.targetImageURL) {
-                print("[AR] Loading overlay image from: \(newConfig.targetImageURL)")
+            if let overlayImageView = self.overlayImageView, let imageURL = URL(string: newConfig.targetImageUrl) {
+                print("[AR] Loading overlay image from: \(newConfig.targetImageUrl)")
                 let imageView = overlayImageView // Create a local reference to avoid capturing self
                 URLSession.shared.dataTask(with: imageURL) { data, response, error in
                     if let data = data, let image = UIImage(data: data) {
@@ -2103,21 +2103,21 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
     private func logConfig() {
         print("[AR] 📋 CURRENT CONFIG VALUES:")
-        print("[AR] - targetImageURL: \(config.targetImageURL)")
+        print("[AR] - targetImageUrl: \(config.targetImageUrl)")
         print("[AR] - videoURL: \(config.videoURL)")
-        print("[AR] - hasTransparency: \(config.hasTransparency)")
-        if config.hasTransparency {
-            print("[AR] - videoRGBURL: \(config.videoRGBURL)")
-            print("[AR] - videoAlphaURL: \(config.videoAlphaURL)")
+        print("[AR] - videoWithTransparency: \(config.videoWithTransparency)")
+        if config.videoWithTransparency {
+            print("[AR] - videoRgbUrl: \(config.videoRgbUrl)")
+            print("[AR] - videoAlphaUrl: \(config.videoAlphaUrl)")
         }
         print("[AR] - videoPlaneWidth: \(config.videoPlaneWidth)")
         print("[AR] - videoPlaneHeight: \(config.videoPlaneHeight)")
         print("[AR] - addedWidth: \(config.addedWidth ?? 1.0)")
         print("[AR] - addedHeight: \(config.addedHeight ?? 1.0)")
         print("[AR] - ctaButtonText: '\(config.ctaButtonText)'")
-        print("[AR] - ctaButtonColor: \(config.ctaButtonColor)")
+        print("[AR] - ctaButtonColorHex: \(config.ctaButtonColorHex)")
         print("[AR] - ctaButtonURL: \(config.ctaButtonURL)")
-        print("[AR] - ctaButtonDelay: \(config.ctaButtonDelay)")
+        print("[AR] - ctaDelayMs: \(config.ctaDelayMs)")
         print("[AR] - overlayText: '\(config.overlayText)'")
         print("[AR] - loadingText: '\(config.loadingText)'")
     }
@@ -2147,7 +2147,7 @@ extension ARContentView {
         self.isUsingTransparentVideo = false
         self.transparentVideoPlayer = nil
         
-        if let videoURL = URL(string: config.videoRGBURL) {
+        if let videoURL = URL(string: config.videoRgbUrl) {
             self.loadStandardVideo(videoURL: videoURL, completion: completion)
         } else {
             completion()

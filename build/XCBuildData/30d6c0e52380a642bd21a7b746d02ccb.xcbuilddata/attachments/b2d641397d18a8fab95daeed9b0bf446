@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>application-identifier</key>
+	<string>C7XA5GZG35.Effectization-Studio.Effectization-Instant.Clip</string>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>appclips:adagxr.com</string>
+		<string>appclips:adagxr.com/card/*</string>
+	</array>
+	<key>com.apple.developer.on-demand-install-capable</key>
+	<true/>
+	<key>com.apple.developer.parent-application-identifiers</key>
+	<array>
+		<string>C7XA5GZG35.Effectization-Studio.Effectization-Instant</string>
+	</array>
+	<key>com.apple.developer.team-identifier</key>
+	<string>C7XA5GZG35</string>
+	<key>get-task-allow</key>
+	<true/>
+</dict>
+</plist>

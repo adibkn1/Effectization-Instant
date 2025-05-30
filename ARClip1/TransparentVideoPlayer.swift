@@ -2,6 +2,7 @@ import Foundation
 import AVFoundation
 import SceneKit
 import Metal
+import MetalKit
 
 // Mark the class as @unchecked Sendable to fix the capture warning in Task
 class TransparentVideoPlayer: NSObject, @unchecked Sendable {
@@ -46,6 +47,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         // Set up Metal device
         guard let device = MTLCreateSystemDefaultDevice() else {
             print("[TransparentVideo] ❌ Failed to create Metal device")
+            ARLog.error("Failed to create Metal device")
             return
         }
         self.device = device
@@ -53,6 +55,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         // Create command queue
         guard let commandQueue = device.makeCommandQueue() else {
             print("[TransparentVideo] ❌ Failed to create command queue")
+            ARLog.error("Failed to create command queue")
             return
         }
         self.commandQueue = commandQueue
@@ -65,6 +68,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         // Load shader library
         guard let library = device.makeDefaultLibrary() else {
             print("[TransparentVideo] ❌ Failed to create Metal library")
+            ARLog.error("Failed to create Metal library")
             return
         }
         
@@ -98,8 +102,10 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         do {
             pipelineState = try device.makeRenderPipelineState(descriptor: pipelineDescriptor)
             print("[TransparentVideo] ✅ Created Metal pipeline state successfully")
+            ARLog.debug("Created Metal pipeline state successfully")
         } catch {
             print("[TransparentVideo] ❌ Failed to create pipeline state: \(error)")
+            ARLog.error("Failed to create pipeline state: \(error)")
         }
         
         // Create a simple SCNNode to hold the combined texture
@@ -132,6 +138,8 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
     func loadVideos(rgbURL: URL, alphaURL: URL, completion: @escaping (Bool) -> Void) {
         print("[TransparentVideo] 📥 Loading RGB video from: \(rgbURL.absoluteString)")
         print("[TransparentVideo] 📥 Loading Alpha video from: \(alphaURL.absoluteString)")
+        ARLog.debug("📥 Loading RGB video from: \(rgbURL.absoluteString)")
+        ARLog.debug("📥 Loading Alpha video from: \(alphaURL.absoluteString)")
         
         // Reset status
         isRGBReady = false
@@ -193,6 +201,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
             if !self.isRGBReady || !self.isAlphaReady {
                 print("[TransparentVideo] ⚠️ Timeout waiting for videos to load")
+                ARLog.warning("Timeout waiting for videos to load")
                 completion(false)
             }
         }
@@ -206,6 +215,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         rgbPlayer?.play()
         alphaPlayer?.play()
         print("[TransparentVideo] ▶️ Playing synchronized RGB and Alpha videos")
+        ARLog.debug("▶️ Playing synchronized RGB and Alpha videos")
     }
     
     func pause() {
@@ -217,6 +227,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         rgbPlayer?.pause()
         alphaPlayer?.pause()
         print("[TransparentVideo] ⏸️ Paused RGB and Alpha videos")
+        ARLog.debug("⏸️ Paused RGB and Alpha videos")
     }
     
     func getMaterial() -> SCNMaterial {
@@ -322,6 +333,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
               let rgbTextureRef = rgbTextureRef,
               let alphaTextureRef = alphaTextureRef else {
             print("[TransparentVideo] ❌ Failed to create Metal textures from pixel buffers")
+            ARLog.error("Failed to create Metal textures from pixel buffers")
             return
         }
         
@@ -332,6 +344,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         guard let rgbTexture = rgbTexture,
               let alphaTexture = alphaTexture else {
             print("[TransparentVideo] ❌ Failed to get Metal textures")
+            ARLog.error("Failed to get Metal textures")
             return
         }
         
@@ -345,12 +358,14 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         // Create command buffer
         guard let commandBuffer = commandQueue.makeCommandBuffer() else {
             print("[TransparentVideo] ❌ Failed to create command buffer")
+            ARLog.error("Failed to create command buffer")
             return
         }
         
         // Create render command encoder
         guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else {
             print("[TransparentVideo] ❌ Failed to create render encoder")
+            ARLog.error("Failed to create render encoder")
             return
         }
         
@@ -372,6 +387,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
             options: .storageModeShared
         ) else {
             print("[TransparentVideo] ❌ Failed to create vertex buffer")
+            ARLog.error("Failed to create vertex buffer")
             renderEncoder.endEncoding()
             return
         }
@@ -417,12 +433,14 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
             switch playerItem.status {
             case .readyToPlay:
                 print("[TransparentVideo] ✅ RGB video ready to play")
+                ARLog.debug("✅ RGB video ready to play")
                 isRGBReady = true
                 // Only preroll when it's ready to play
                 rgbPlayer?.preroll(atRate: 1.0)
                 checkIfBothVideosReady()
             case .failed:
                 print("[TransparentVideo] ❌ RGB video failed: \(playerItem.error?.localizedDescription ?? "Unknown error")")
+                ARLog.error("RGB video failed: \(playerItem.error?.localizedDescription ?? "Unknown error")")
                 onErrorCallback?(playerItem.error ?? NSError(domain: "TransparentVideoPlayer", code: 1, userInfo: nil))
             default:
                 break
@@ -431,12 +449,14 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
             switch playerItem.status {
             case .readyToPlay:
                 print("[TransparentVideo] ✅ Alpha video ready to play")
+                ARLog.debug("✅ Alpha video ready to play")
                 isAlphaReady = true
                 // Only preroll when it's ready to play
                 alphaPlayer?.preroll(atRate: 1.0)
                 checkIfBothVideosReady()
             case .failed:
                 print("[TransparentVideo] ❌ Alpha video failed: \(playerItem.error?.localizedDescription ?? "Unknown error")")
+                ARLog.error("Alpha video failed: \(playerItem.error?.localizedDescription ?? "Unknown error")")
                 onErrorCallback?(playerItem.error ?? NSError(domain: "TransparentVideoPlayer", code: 2, userInfo: nil))
             default:
                 break
@@ -447,6 +467,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
     private func checkIfBothVideosReady() {
         if isRGBReady && isAlphaReady {
             print("[TransparentVideo] ✅ Both RGB and Alpha videos are ready")
+            ARLog.debug("✅ Both RGB and Alpha videos are ready")
             // Update video size from the actual asset
             if let playerItem = rgbPlayerItem, #available(iOS 16.0, *) {
                 // Using a non-capturing async Task with the new API
@@ -455,6 +476,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
                         let size = try? await track.load(.naturalSize)
                         let videoSize = size ?? CGSize(width: 1280, height: 720)
                         print("[TransparentVideo] 📐 Video dimensions: \(videoSize.width) x \(videoSize.height)")
+                        ARLog.debug("📐 Video dimensions: \(videoSize.width) x \(videoSize.height)")
                         
                         // Update on main thread
                         await MainActor.run {
@@ -485,6 +507,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
                     if let track = rgbPlayerItem?.asset.tracks(withMediaType: .video).first {
                         videoSize = track.naturalSize
                         print("[TransparentVideo] 📐 Video dimensions: \(videoSize.width) x \(videoSize.height)")
+                        ARLog.debug("📐 Video dimensions: \(videoSize.width) x \(videoSize.height)")
                         
                         // Recreate texture with new dimensions
                         setupCombinedTexture()
@@ -497,6 +520,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
                 if let track = rgbPlayerItem?.asset.tracks(withMediaType: .video).first {
                     videoSize = track.naturalSize
                     print("[TransparentVideo] 📐 Video dimensions: \(videoSize.width) x \(videoSize.height)")
+                    ARLog.debug("📐 Video dimensions: \(videoSize.width) x \(videoSize.height)")
                     
                     // Recreate texture with new dimensions
                     setupCombinedTexture()
@@ -515,6 +539,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         rgbPlayer?.play()
         alphaPlayer?.play()
         print("[TransparentVideo] 🔄 Video reached end, looping back to start")
+        ARLog.debug("🔄 Video reached end, looping back to start")
     }
     
     // MARK: - Cleanup

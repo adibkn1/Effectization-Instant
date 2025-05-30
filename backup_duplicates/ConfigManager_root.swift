@@ -4,37 +4,37 @@ import UIKit
 // MARK: - Configuration Model
 struct ARConfig: Codable {
     // MARK: - Properties
-    let targetImageURL: String
+    let targetImageUrl: String
     let videoURL: String
-    let hasTransparency: Bool
-    let videoRGBURL: String
-    let videoAlphaURL: String
+    let videoWithTransparency: Bool
+    let videoRgbUrl: String
+    let videoAlphaUrl: String
     let videoPlaneWidth: CGFloat
     let videoPlaneHeight: CGFloat
     let addedWidth: CGFloat?
     let addedHeight: CGFloat?
     let ctaButtonText: String
-    let ctaButtonColor: String
+    let ctaButtonColorHex: String
     let ctaButtonURL: String
-    let ctaButtonDelay: TimeInterval
+    let ctaDelayMs: TimeInterval
     let overlayText: String
     let loadingText: String
     
     // MARK: - Coding Keys
     enum CodingKeys: String, CodingKey {
-        case targetImageURL
+        case targetImageUrl
         case videoURL
-        case hasTransparency
-        case videoRGBURL
-        case videoAlphaURL
+        case videoWithTransparency
+        case videoRgbUrl
+        case videoAlphaUrl
         case videoPlaneWidth
         case videoPlaneHeight
         case addedWidth
         case addedHeight
         case ctaButtonText
-        case ctaButtonColor
+        case ctaButtonColorHex
         case ctaButtonURL
-        case ctaButtonDelay
+        case ctaDelayMs
         case overlayText
         case loadingText
     }
@@ -48,7 +48,7 @@ final class ConfigManager {
     
     // MARK: - Constants
     private let BASE_URL = "https://adagxr.com/card"
-    private let CONFIG_FILENAME = "sample_config.json"
+    private let CONFIG_FILENAME = "ar-img-config.json"
     private let DEFAULT_FOLDER_ID = "ar"
     
     // MARK: - Configuration Loading
@@ -135,7 +135,7 @@ final class ConfigManager {
                 // Log successful parsing
                 self.log("✅ Successfully parsed configuration")
                 self.log("📋 Button text: '\(config.ctaButtonText)'")
-                self.log("📋 Target image URL: \(config.targetImageURL)")
+                self.log("📋 Target image URL: \(config.targetImageUrl)")
                 self.log("📋 Video URL: \(config.videoURL)")
                 self.log("📋 Video dimensions: \(config.videoPlaneWidth) x \(config.videoPlaneHeight)")
                 
@@ -159,19 +159,19 @@ final class ConfigManager {
             case .failure:
                 // Return an empty config instead of nil
                 let emptyConfig = ARConfig(
-                    targetImageURL: "",
+                    targetImageUrl: "",
                     videoURL: "",
-                    hasTransparency: false,
-                    videoRGBURL: "",
-                    videoAlphaURL: "",
+                    videoWithTransparency: false,
+                    videoRgbUrl: "",
+                    videoAlphaUrl: "",
                     videoPlaneWidth: 1.0,
                     videoPlaneHeight: 1.41431,
                     addedWidth: 1.0,
                     addedHeight: 1.0,
-                    ctaButtonText: "Learn More",
-                    ctaButtonColor: "#F84B07",
+                    ctaButtonText: "",
+                    ctaButtonColorHex: "#F84B07",
                     ctaButtonURL: "https://effectizationstudio.com",
-                    ctaButtonDelay: 1.0,
+                    ctaDelayMs: 1.0,
                     overlayText: "Scan this image",
                     loadingText: "Preparing your experience"
                 )

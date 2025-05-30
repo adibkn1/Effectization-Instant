@@ -66,7 +66,24 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				AlphaVideoShader.metal,
+				ARContentView.swift,
+				ARView/ARAssetLoader.swift,
 				Assets.xcassets,
+				ConfigManager.swift,
+				Extensions/URLExtensions.swift,
+				Network/NetworkClient.swift,
+				Network/NetworkMonitor.swift,
+				TransparentVideoPlayer.swift,
+				UIColorExtension.swift,
+				Utils/ARLogger.swift,
+				Utils/ConfigApplier.swift,
+				Utils/Constants.swift,
+				Utils/QRScannerHelper.swift,
+				Views/CTAButtonView.swift,
+				Views/LoadingView.swift,
+				Views/NoInternetView.swift,
+				Views/NoInternetViewController.swift,
+				Views/OverlayView.swift,
 			);
 			target = B21238592CAC18AB0087BCBE /* Effectization-Instant */;
 		};

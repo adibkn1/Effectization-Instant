@@ -35,7 +35,20 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             print("[Main App] Processing AR URL: \(url.absoluteString)")
             
             // Extract folderID from URL
-            let folderID = extractFolderIDFromURL(url) ?? "ar"
+            guard let folderID = extractFolderIDFromURL(url) else {
+                print("[Main App] No valid folderID in URL, showing QR scanner")
+                DispatchQueue.main.async {
+                    let qrViewController = QRViewController()
+                    qrViewController.modalPresentationStyle = .fullScreen
+                    qrViewController.modalTransitionStyle = .crossDissolve
+                    
+                    if let rootViewController = self.window?.rootViewController {
+                        rootViewController.present(qrViewController, animated: true)
+                    }
+                }
+                return
+            }
+            
             print("[Main App] Using folderID: \(folderID)")
             
             // Present AR view

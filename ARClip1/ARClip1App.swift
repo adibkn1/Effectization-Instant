@@ -3,93 +3,220 @@ import SwiftUI
 
 @main
 struct ARClip1App: App {
-    @State private var launchURL: URL?
-    @State private var folderID: String = "ar" // Default folderID
+    @Environment(\.scenePhase) private var scenePhase
     
-    init() {
-        // Check environment variable at launch time
-        if let envURLString = ProcessInfo.processInfo.environment["_XCAppClipURL"],
-           let envURL = URL(string: envURLString) {
-            print("[App] Found environment URL at startup: \(envURLString)")
-            
-            // Pre-extract folderID
-            if let extractedID = extractFolderIDFromURL(envURL) {
-                print("[App] Pre-extracted folderID from environment: \(extractedID)")
-                
-                // We can't set @State variables directly in init,
-                // but we can set initial values for these properties
-                _folderID = State(initialValue: extractedID)
-                _launchURL = State(initialValue: envURL)
-            }
-        }
-    }
+    @State private var launchURL: URL?
+    @State private var showQRScanner: Bool = false
+    @State private var showNoInternet: Bool = false
+    @State private var pendingURL: URL?
     
     var body: some Scene {
         WindowGroup {
+            ZStack {
+                if showNoInternet {
+                    // Wrap NoInternetViewController in UIViewControllerRepresentable
+                    NoInternetViewControllerWrapper(initialLink: pendingURL)
+                        .edgesIgnoringSafeArea(.all)
+                } else if showQRScanner {
+                    // Wrap QRViewController in UIViewControllerRepresentable
+                    QRViewControllerWrapper()
+                        .edgesIgnoringSafeArea(.all)
+                } else if launchURL != nil {
+                    // Only show AR if we have a valid URL
             ARContentView(launchURL: launchURL)
                 .edgesIgnoringSafeArea(.all)
                 .statusBar(hidden: true)
-                .onAppear {
+                } else {
+                    // Fallback view while deciding what to show
+                    Color.black
+                        .edgesIgnoringSafeArea(.all)
+                }
+            }
+            .onAppear {
                     print("[App] onAppear with launchURL: \(launchURL?.absoluteString ?? "nil")")
-                    print("[App] Current folderID: \(folderID)")
-                    
-                    // Check environment again if needed
-                    if launchURL == nil, 
-                       let envURLString = ProcessInfo.processInfo.environment["_XCAppClipURL"],
-                       let envURL = URL(string: envURLString) {
-                        print("[App] Using environment URL: \(envURLString)")
-                        
-                        // Important: Wait until next run loop to set the URL
-                        // This prevents a race condition during initialization
-                        DispatchQueue.main.async {
-                            self.launchURL = envURL
-                        }
-                    }
+                
+                // Set up network status change handler
+                setupNetworkMonitoring()
+            }
+            // 1️⃣ Handle "Open URL" events at runtime
+            .onOpenURL { url in
+                print("[App] Received URL: \(url.absoluteString)")
+                handleIncomingURL(url)
+            }
+            // 2️⃣ Handle initial App Clip invocation via universal link
+            .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                if let url = activity.webpageURL {
+                    print("[App] Received URL from user activity: \(url.absoluteString)")
+                    handleIncomingURL(url)
                 }
-                .onOpenURL { url in
-                    // Handle URL when app is opened via URL
-                    print("[App] Received URL: \(url.absoluteString)")
-                    
-                    // Extract folderID from URL
-                    if let extractedID = extractFolderIDFromURL(url) {
-                        folderID = extractedID
-                        print("[App] Extracted folderID: \(folderID)")
-                    } else {
-                        folderID = "ar" // Default
-                        print("[App] Could not extract folderID, using default: ar")
-                    }
-                    
-                    launchURL = url
+            }
+            // 3️⃣ As a fallback, when the scene becomes active, pick up the XCAppClipURL env var
+            .onChange(of: scenePhase) { newPhase in
+                if newPhase == .active, launchURL == nil,
+                   let env = ProcessInfo.processInfo.environment["_XCAppClipURL"],
+                   let url = URL(string: env) {
+                    print("[App] Found environment URL: \(env)")
+                    handleIncomingURL(url)
+                } else if newPhase == .active, launchURL == nil, !showNoInternet, !showQRScanner {
+                    // If we have no URL and aren't showing any screens yet, check status
+                    checkStatus()
                 }
+            }
         }
     }
     
-    // Helper method to extract folderID from URL
-    private func extractFolderIDFromURL(_ url: URL) -> String? {
-        // Try path component extraction
-        let pathComponents = url.pathComponents.filter { !$0.isEmpty }
-        if pathComponents.contains("card") {
-            if let cardIndex = pathComponents.firstIndex(of: "card"), cardIndex + 1 < pathComponents.count {
-                return pathComponents[cardIndex + 1]
+    private func setupNetworkMonitoring() {
+        // Enable logging
+        ARLog.isEnabled = true
+        
+        // Store a reference to self in a local variable
+        NetworkMonitor.shared.onStatusChange = { isConnected in
+            // Use a separate method that will be called with self as the receiver
+            if isConnected {
+                // Network just came back online
+                if let url = pendingURL, url.extractFolderID() != nil {
+                    // We have a valid pending URL, show AR
+                    launchURL = url
+                    showNoInternet = false
+                    showQRScanner = false
+                } else if showNoInternet {
+                    // We were showing no internet screen with invalid/no URL
+                    showQRScanner = true
+                    showNoInternet = false
+                }
+            } else {
+                // Network just went offline
+                if launchURL != nil {
+                    // We were showing AR, save URL and show no internet
+                    pendingURL = launchURL
+                    launchURL = nil
+                    showNoInternet = true
+                } else if showQRScanner {
+                    // We were showing QR scanner, show no internet
+                    showQRScanner = false
+                    showNoInternet = true
+                }
             }
         }
-        
-        // Try URL path extraction
-        if let path = URLComponents(url: url, resolvingAgainstBaseURL: true)?.path {
-            let pathComps = path.components(separatedBy: "/").filter { !$0.isEmpty }
-            if pathComps.count >= 2 && pathComps[0] == "card" {
-                return pathComps[1]
+    }
+    
+    private func handleIncomingURL(_ url: URL) {
+        if url.extractFolderID() != nil {
+            // Valid URL with folderID
+            if NetworkMonitor.shared.isConnected {
+                // Network up + valid link -> AR
+                launchURL = url
+                showQRScanner = false
+                showNoInternet = false
+            } else {
+                // Network down + valid link -> Delay showing No Internet
+                pendingURL = url
+                showQRScanner = false
+                launchURL = nil
+                
+                // Delay 200ms before showing No-Internet
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    // If network still offline after delay
+                    if !NetworkMonitor.shared.isConnected {
+                        showNoInternet = true
+                    } else {
+                        // Network came back online during delay
+                        launchURL = url
+                    }
+                }
+            }
+        } else {
+            // Invalid URL without folderID
+            if NetworkMonitor.shared.isConnected {
+                // Network up + invalid link -> QR scanner
+                showQRScanner = true
+                showNoInternet = false
+                launchURL = nil
+            } else {
+                // Network down + invalid link -> Delay showing No Internet
+                showQRScanner = false
+                launchURL = nil
+                pendingURL = nil
+                
+                // Delay 200ms before showing No-Internet
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    // If network still offline after delay
+                    if !NetworkMonitor.shared.isConnected {
+                        showNoInternet = true
+                    } else {
+                        // Network came back online during delay
+                        showQRScanner = true
+                }
+        }
+    }
+        }
+    }
+    
+    private func checkStatus() {
+        // Called during onAppear to make sure we're showing the right view
+        if let url = pendingURL, let _ = url.extractFolderID() {
+            // We have a valid pending URL
+            if NetworkMonitor.shared.isConnected {
+                // Network is up, show AR
+                launchURL = url
+                showNoInternet = false
+                showQRScanner = false
+            } else {
+                // Network is down, delay showing No Internet
+                showQRScanner = false
+                
+                // Delay 200ms before showing No-Internet
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    // If network still offline after delay
+                    if !NetworkMonitor.shared.isConnected {
+                        showNoInternet = true
+                    }
+                }
+            }
+        } else {
+            // No valid URL
+            if NetworkMonitor.shared.isConnected {
+                // Network is up, show QR scanner
+                showQRScanner = true
+                showNoInternet = false
+            } else {
+                // Network is down, delay showing No Internet
+                showQRScanner = false
+                
+                // Delay 200ms before showing No-Internet
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    // If network still offline after delay
+                    if !NetworkMonitor.shared.isConnected {
+                        showNoInternet = true
+                    }
+                }
             }
         }
-        
-        // Try subdomain extraction
-        if let host = url.host, host.contains(".") {
-            let hostComponents = host.components(separatedBy: ".")
-            if hostComponents.count >= 3 && hostComponents[1] == "adagxr" {
-                return hostComponents[0]
-            }
-        }
-        
-        return nil
+    }
+}
+
+// MARK: - UIViewControllerRepresentable Wrappers
+
+// Wrapper for NoInternetViewController
+struct NoInternetViewControllerWrapper: UIViewControllerRepresentable {
+    let initialLink: URL?
+    
+    func makeUIViewController(context: Context) -> NoInternetViewController {
+        return NoInternetViewController(initialLink: initialLink)
+    }
+    
+    func updateUIViewController(_ uiViewController: NoInternetViewController, context: Context) {
+        // No updates needed
+    }
+}
+
+// Wrapper for QRViewController
+struct QRViewControllerWrapper: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> QRViewController {
+        return QRViewController()
+    }
+    
+    func updateUIViewController(_ uiViewController: QRViewController, context: Context) {
+        // No updates needed
     }
 }

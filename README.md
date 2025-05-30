@@ -29,7 +29,7 @@ AR App Clip that loads configurations from remote URLs for dynamically changing 
 ## How It Works
 
 1. **URL Detection**: The App Clip scans the launch URL for folder IDs in the format "/card/[folderID]"
-2. **Configuration Loading**: Loads JSON configuration from "https://adagxr.com/card/[folderID]/sample_config.json"
+2. **Configuration Loading**: Loads JSON configuration from "https://adagxr.com/card/[folderID]/ar-img-config.json"
 3. **AR Experience**: Shows the configured AR experience with appropriate video, image tracking, and CTA button
 
 ## Testing

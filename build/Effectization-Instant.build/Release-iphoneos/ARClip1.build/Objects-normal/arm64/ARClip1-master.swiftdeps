@@ -1,0 +1,21 @@
+version: "Apple Swift version 6.1 (swiftlang-6.1.0.110.21 clang-1700.0.13.3)"
+options: "e985d94e8d21f7ef898af5c118395b47c8b9e2cd638a3e2af56239e46634cc2d"
+build_start_time: [1748419380, 61006000]
+build_end_time: [1748419384, 390332000]
+inputs:
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ARClip1App.swift": [1748417799, 948204059]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ARContentView.swift": [1748419365, 215105134]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ConfigManager.swift": [1748417636, 58969618]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ContentView.swift": [1748353173, 697283223]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Extensions/URLExtensions.swift": [1748417123, 588435721]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/SceneDelegate.swift": [1748417799, 951526605]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/TransparentVideoPlayer.swift": [1748417799, 954546276]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/UIColorExtension.swift": [1748416509, 245540420]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Utils/ARLogger.swift": [1748417799, 948228600]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Views/CTAButtonView.swift": [1748418732, 380918484]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Views/LoadingView.swift": [1748418092, 521692119]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Views/NoInternetView.swift": [1748419218, 452561285]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Views/OverlayView.swift": [1748418683, 195935128]
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/Effectization-Instant/ViewControllers/QRViewController.swift": [1748411122, 883959136]
+  ? "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphoneos/ARClip1.build/DerivedSources/GeneratedAssetSymbols.swift"
+  : [1748418094, 70573655]

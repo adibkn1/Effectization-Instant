@@ -91,6 +91,17 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
             return
         }
         
+        // allow the camera to continuously refocus
+        if videoCaptureDevice.isFocusModeSupported(.continuousAutoFocus) {
+            do {
+                try videoCaptureDevice.lockForConfiguration()
+                videoCaptureDevice.focusMode = .continuousAutoFocus
+                videoCaptureDevice.unlockForConfiguration()
+            } catch {
+                print("[QR] Could not lock for configuration: \(error)")
+            }
+        }
+        
         captureSession.commitConfiguration()
         
         // Set up the preview layer to display the camera feed

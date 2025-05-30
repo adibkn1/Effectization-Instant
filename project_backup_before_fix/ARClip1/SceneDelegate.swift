@@ -202,7 +202,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 
                 // Update app state
                 currentFolderID = folderID
-                currentConfigID = "sample_config"
+                currentConfigID = "ar-img-config"
                 
                 // Clear caches
                 URLCache.shared.removeAllCachedResponses()
@@ -227,7 +227,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 
                 // Update app state
                 currentFolderID = possibleFolderID
-                currentConfigID = "sample_config"
+                currentConfigID = "ar-img-config"
                 
                 // Clear caches
                 URLCache.shared.removeAllCachedResponses()
@@ -244,7 +244,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Fallback to default folder ID
         logToFile("⚠️ Could not extract folderID, using default")
         currentFolderID = "ar"
-        currentConfigID = "sample_config"
+        currentConfigID = "ar-img-config"
         
         // Notify observers
         NotificationCenter.default.post(name: NSNotification.Name("UpdateFolderID"), object: nil)
@@ -319,22 +319,22 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 currentConfigID = pathComponents[2]
                 logToFile("🏷️ Set configID to: \(currentConfigID) from path component")
             } else {
-                // If no specific config, default to "sample_config"
-                currentConfigID = "sample_config"
+                // If no specific config, default to "ar-img-config"
+                currentConfigID = "ar-img-config"
                 logToFile("🏷️ No config in path, defaulting to: \(currentConfigID)")
             }
         } else if pathComponents.count <= 1 {
             // Handle the case where the URL is just /card or / without a specific folder ID
             // In this case, use ar as the default folder ID
             currentFolderID = "ar" // Default to ar when no folder ID is specified
-            currentConfigID = "sample_config"
+            currentConfigID = "ar-img-config"
             logToFile("⚠️ Path only contains 'card' or empty, defaulting folderID to: \(currentFolderID)")
             logToFile("📂 Will load config from: https://adagxr.com/card/\(currentFolderID)/")
         } else {
             logToFile("⚠️ Path does not contain expected 'card/[folderID]' format")
             // Default to ar as a fallback for any unexpected path format
             currentFolderID = "ar" 
-            currentConfigID = "sample_config"
+            currentConfigID = "ar-img-config"
             logToFile("🔄 Falling back to default folderID: \(currentFolderID)")
         }
         
@@ -357,7 +357,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         logToFile("🔄 [Request \(loadingID)] Loading configuration")
         
         // DEBUG: Log what config URL should be loaded
-        let expectedURL = "https://adagxr.com/card/\(currentFolderID)/sample_config.json"
+        let expectedURL = "https://adagxr.com/card/\(currentFolderID)/ar-img-config.json"
         logToFile("🔍 Expected config URL: \(expectedURL)")
         
         // Create a timeout mechanism
@@ -398,7 +398,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             case .success(let config):
                 // Log successful configuration
                 self.logToFile("✅ [Request \(loadingID)] Configuration loaded successfully")
-                self.logToFile("📋 targetImageURL: \(config.targetImageURL)")
+                self.logToFile("📋 targetImageUrl: \(config.targetImageUrl)")
                 self.logToFile("📋 videoURL: \(config.videoURL)")
                 self.logToFile("📋 Button text: '\(config.ctaButtonText)'")
                 self.logToFile("📋 Overlay text: '\(config.overlayText)'")

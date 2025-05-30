@@ -1,15 +1,20 @@
 {
-  "appclips": {
-    "apps": ["3KPKZYJ375.Effectization-Studio.Effectization-Instant.Clip"],
+  "applinks": {
+    "apps": [],
     "details": [
       {
-        "appIDs": ["3KPKZYJ375.Effectization-Studio.Effectization-Instant.Clip"],
-        "components": [
-          {
-            "/": "/card/*"
-          }
+        "appID": "C7XA5GZG35.Effectization-Studio.Effectization-Instant.Clip",
+        "paths": [
+          "/card/",
+          "/card/*",
+          "/card/*/"
         ]
       }
+    ]
+  },
+  "appclips": {
+    "apps": [
+      "C7XA5GZG35.Effectization-Studio.Effectization-Instant.Clip"
     ]
   }
 }

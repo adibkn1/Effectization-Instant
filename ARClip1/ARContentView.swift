@@ -3,47 +3,27 @@ import ARKit
 import SceneKit
 import AVFoundation
 import Network
-import UIKit  // Ensuring UIKit is in scope
-import Foundation
+import UIKit
 
 struct ARContentView: UIViewControllerRepresentable {
     var launchURL: URL?
     
-    func makeUIViewController(context: Context) -> ARViewController {
-        // First, directly check for environment variable (works for App Clips)
-        var folderID = "ar" // Default
-        var finalURL = launchURL
-        
-        // Check for _XCAppClipURL environment variable
-        if let envURLString = ProcessInfo.processInfo.environment["_XCAppClipURL"], 
-           let envURL = URL(string: envURLString) {
-            print("[AR] Found environment URL: \(envURLString)")
-            finalURL = envURL
-            
-            // Try to extract folderID from environment URL
-            if let id = envURL.extractFolderID() {
-                folderID = id
-                print("[AR] Extracted folderID from environment: \(folderID)")
-            }
+    func makeUIViewController(context: Context) -> UIViewController {
+        // 1) If we got a valid deep‐link URL and folderID, go straight to AR
+        if let url = launchURL,
+           let folderID = url.extractFolderID() {
+            let arVC = ARViewController(folderID: folderID)
+            arVC.launchURL = url
+            return arVC
         }
-        
-        // If no environment URL, try launchURL
-        if folderID == "ar", let url = launchURL {
-            if let id = url.extractFolderID() {
-                folderID = id
-                print("[AR] Extracted folderID from launchURL: \(folderID)")
-            }
-        }
-        
-        print("[AR] Creating controller with folderID: \(folderID)")
-        
-        // Create controller with folderID and URL
-        let controller = ARViewController(folderID: folderID)
-        controller.launchURL = finalURL
-        return controller
+
+        // 2) Otherwise show the QR scanner
+        let qr = QRViewController()
+        qr.modalPresentationStyle = .fullScreen
+        return qr
     }
 
-    func updateUIViewController(_ uiViewController: ARViewController, context: Context) {
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
         // No updates required for now
     }
 }
@@ -59,49 +39,58 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     private var loadingTimer: Timer?
     private var areAssetsLoaded = false
     private var retryCount = 0
-    private let maxRetries = 3
-    private let loadingTimeout: TimeInterval = 30 // 30 seconds timeout
+    private let maxRetries = Constants.maxAssetRetries
+    private let loadingTimeout: TimeInterval = Constants.loadingTimeout
     private var videoPlaneNode: SCNNode? // Track the video plane node
     private var hasShownCTAButton = false // Track if CTA button has been shown
     private var transparentVideoPlayer: TransparentVideoPlayer? // For transparent video
     private var isUsingTransparentVideo = false // Flag to track transparent video mode
     
+    // Replace loadingIndicator and loadingLabel with loadingView
+    var loadingView: LoadingView!
+    
+    // Replace overlayImageView and overlayLabel with overlayView
+    var overlayView: OverlayView!
+    
+    // Replace actionButton with ctaView
+    var ctaView: CTAButtonView!
+    
+    // Replace noInternetView, noInternetImageView, and retryButton with noInternetView
+    var noInternetView: NoInternetView!
+    
     // MARK: - Configuration
-    private var config: ARConfig = ARConfig.defaultConfig(folderID: "ar") // Default folderID
+    private var config: ARConfig?  // Optional, will be set from server
     private var initialFolderID: String
+    
+    // Make videoPlane dimensions accessible for ConfigApplier
+    var videoPlaneWidth: CGFloat = 17.086
+    var videoPlaneHeight: CGFloat = 30.375 // default dimensions
     
     // Custom initializer that accepts a folderID
     init(folderID: String) {
         self.initialFolderID = folderID
         super.init(nibName: nil, bundle: nil)
         
-        // Initialize with the provided folderID
-        self.config = ARConfig.defaultConfig(folderID: folderID)
-        print("[AR] Controller initialized with folderID: \(folderID)")
+        // Do not set default config, must be loaded from server
+        ARLog.debug("Controller initialized with folderID: \(folderID)")
     }
     
     // Required initializer for UIViewController
     required init?(coder: NSCoder) {
-        self.initialFolderID = "ar"
-        super.init(coder: coder)
+        fatalError("init(coder:) is not supported")
     }
     
     var overlayImageView: UIImageView!
     var overlayLabel: UILabel!
-    var actionButton: UIButton!
     var loadingIndicator: UIActivityIndicatorView!
     var loadingLabel: UILabel!
     var retryButton: UIButton!
-    var noInternetView: UIView!
     var noInternetImageView: UIImageView!
-
-    private var videoPlaneWidth: CGFloat = 17.086
-    private var videoPlaneHeight: CGFloat = 30.375 // default dimensions
 
     var launchURL: URL? {
         didSet {
             if let url = launchURL {
-                print("[AR] Launch URL set: \(url.absoluteString)")
+                ARLog.debug("Launch URL set: \(url.absoluteString)")
                 processLaunchURL(url)
             }
         }
@@ -111,12 +100,18 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        // Only proceed if launchURL was set
+        guard launchURL != nil else {
+            // This should never happen if ARContentView is correct,
+            // but just in case bail out immediately
+            return
+        }
+        
         self.edgesForExtendedLayout = [.top, .bottom, .left, .right]
         
-        // Log initial config values
-        print("[AR] Initializing AR view with folderID: \(initialFolderID)")
-        print("[AR] Initial config set with targetImageURL: \(config.targetImageURL)")
-        logConfig()
+        // Initialize UI without referring to config
+        ARLog.debug("Initializing AR view with folderID: \(initialFolderID)")
         
         // Register for config notifications
         NotificationCenter.default.addObserver(
@@ -144,20 +139,20 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         
         // Set up a debug check to verify config values after delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
-            print("[AR] 🔍 DEBUG CHECK - Config values after 3 seconds:")
+            ARLog.debug("🔍 DEBUG CHECK - Config values after 3 seconds:")
             self?.logConfig()
             
             // If we're still using the wrong folder based on environment or launch URL
             if let self = self, let url = self.launchURL {
                 let currentURLFolder = url.extractFolderID()
-                let configURLFolder = URL.extractFolderID(from: self.config.targetImageURL)
+                let configURLFolder = self.config?.targetImageUrl != nil ? URL.extractFolderID(from: self.config!.targetImageUrl.absoluteString) : nil
                 
-                print("[AR] 🔍 URL folder: \(currentURLFolder ?? "unknown"), Config folder: \(configURLFolder ?? "unknown")")
+                ARLog.debug("🔍 URL folder: \(currentURLFolder ?? "unknown"), Config folder: \(configURLFolder ?? "unknown")")
                 
                 if let urlFolder = currentURLFolder, 
                    let configFolder = configURLFolder,
                    urlFolder != configFolder {
-                    print("[AR] 🔄 Debug check detected mismatch: URL has \(urlFolder) but config has \(configFolder) - requesting config reload")
+                    ARLog.debug("🔄 Debug check detected mismatch: URL has \(urlFolder) but config has \(configFolder) - requesting config reload")
                     // Trigger a reload
                     NotificationCenter.default.post(
                         name: NSNotification.Name("RequestConfigReloadNotification"),
@@ -168,6 +163,29 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
         
         checkCameraPermission()
+        
+        // Subscribe to network status changes
+        NetworkMonitor.shared.onStatusChange = { [weak self] isConnected in
+            guard let self = self else { return }
+            
+            if isConnected {
+                // Network is back online
+                if let url = self.launchURL, let _ = url.extractFolderID() {
+                    // Valid URL: retry AR
+                    self.hideNetworkError()
+                    self.processLaunchURL(url)
+                } else {
+                    // Invalid URL: show QR scanner
+                    QRScannerHelper.openQRScanner(from: self)
+                }
+            } else {
+                // Network went offline
+                if !self.areAssetsLoaded {
+                    // Only show error if we're still loading
+                    self.showNetworkErrorView()
+            }
+        }
+        }
     }
     
     @objc private func configLoaded(_ notification: Notification) {
@@ -175,85 +193,25 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 
-                let isNewConfig = self.config.targetImageURL != config.targetImageURL
-                print("[AR] 🔍 CONFIG DIAGNOSIS:")
-                print("[AR] 🔍 Previous targetImageURL: \(self.config.targetImageURL)")
-                print("[AR] 🔍 New targetImageURL: \(config.targetImageURL)")
-                print("[AR] 🔍 Is new config: \(isNewConfig)")
-                print("[AR] 🔍 Button text: '\(config.ctaButtonText)'")
-                print("[AR] 🔍 Video URL: \(config.videoURL)")
-                print("[AR] 🔍 OverlayText: '\(config.overlayText)'")
-                print("[AR] 🔍 Dimensions: \(config.videoPlaneWidth) x \(config.videoPlaneHeight)")
+                let isNewConfig = self.config?.targetImageUrl != config.targetImageUrl
+                ARLog.debug("🔍 CONFIG DIAGNOSIS:")
+                ARLog.debug("🔍 Previous targetImageUrl: \(self.config?.targetImageUrl.absoluteString ?? "nil")")
+                ARLog.debug("🔍 New targetImageUrl: \(config.targetImageUrl)")
+                ARLog.debug("🔍 Is new config: \(isNewConfig)")
+                ARLog.debug("🔍 Button text: '\(config.ctaButtonText ?? "nil")'")
+                ARLog.debug("🔍 Video URL: \(config.videoURL)")
+                ARLog.debug("🔍 OverlayText: '\(config.overlayText)'")
+                ARLog.debug("🔍 Dimensions: \(config.videoPlaneWidth) x \(config.videoPlaneHeight)")
                 
                 if config.videoURL.contains("/ar/") && !config.videoURL.contains("/ar1/") {
-                    print("[AR] ⚠️ WARNING: Using default 'ar' folder instead of 'ar1' folder!")
+                    ARLog.warning("Using default 'ar' folder instead of 'ar1' folder!")
                 }
                 
                 // Store the new config
                 self.config = config
                 
-                // Update UI elements with the new configuration
-                if let loadingLabel = self.loadingLabel {
-                    loadingLabel.text = config.loadingText
-                    print("[AR] 📝 Updated loading text: \(config.loadingText)")
-                }
-                
-                if let overlayLabel = self.overlayLabel {
-                    overlayLabel.text = config.overlayText
-                    print("[AR] 📝 Updated overlay text: \(config.overlayText)")
-                }
-                
-                // Update button even if it's not visible yet
-                if let button = self.actionButton {
-                    // Get all labels in the button hierarchy
-                    let labels = button.subviews.compactMap { $0 as? UILabel }
-                    if let label = labels.first {
-                        label.text = config.ctaButtonText
-                        print("[AR] 📝 Updated CTA button text: \(config.ctaButtonText)")
-                    } else {
-                        // If no label found, add one
-                        let newLabel = UILabel()
-                        newLabel.text = config.ctaButtonText
-                        newLabel.textColor = .white
-                        newLabel.textAlignment = .center
-                        newLabel.font = UIFont.systemFont(ofSize: 17, weight: .medium)
-                        newLabel.translatesAutoresizingMaskIntoConstraints = false
-                        button.addSubview(newLabel)
-                        
-                        NSLayoutConstraint.activate([
-                            newLabel.centerXAnchor.constraint(equalTo: button.centerXAnchor),
-                            newLabel.centerYAnchor.constraint(equalTo: button.centerYAnchor)
-                        ])
-                        
-                        print("[AR] 🆕 Created new CTA button label: \(config.ctaButtonText)")
-                    }
-                    
-                    // Update button color
-                    let hexColor = config.ctaButtonColor.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-                    if let buttonColor = UIColor(hexString: hexColor) {
-                        button.backgroundColor = buttonColor
-                        print("[AR] 🎨 Updated button color: \(config.ctaButtonColor)")
-                    }
-                } else {
-                    print("[AR] ⚠️ Button not yet initialized")
-                }
-                
-                // Load overlay image from config URL
-                if let imageURL = URL(string: config.targetImageURL) {
-                    print("[AR] Loading overlay image from: \(config.targetImageURL)")
-                    URLSession.shared.dataTask(with: imageURL) { [weak self] data, response, error in
-                        if let data = data, let image = UIImage(data: data) {
-                            DispatchQueue.main.async {
-                                if let overlayImageView = self?.overlayImageView {
-                                    overlayImageView.image = image
-                                    print("[AR] ✅ Successfully loaded overlay image")
-                                }
-                            }
-                        } else if let error = error {
-                            print("[AR] Failed to load overlay image: \(error.localizedDescription)")
-                        }
-                    }.resume()
-                }
+                // Apply the configuration using ConfigApplier
+                ConfigApplier.apply(config, to: self)
                 
                 // Start or restart asset loading if needed
                 if !self.areAssetsLoaded || isNewConfig {
@@ -268,7 +226,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
     @objc private func configChanged(_ notification: Notification) {
         if let folderID = notification.userInfo?["folderID"] as? String {
-            print("[AR] APP RUNNING QR SCAN - Received config change to folderID: \(folderID)")
+            ARLog.debug("APP RUNNING QR SCAN - Received config change to folderID: \(folderID)")
             
             // Reset everything
             cancelAssetLoading()
@@ -291,62 +249,74 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             // Show loading animation
             showLoadingAnimation()
             
-            // Use the provided folderID from notification 
-            config = ARConfig.defaultConfig(folderID: folderID)
-            print("[AR] Updated config with new folderID: \(folderID), targetImageURL: \(config.targetImageURL)")
-            print("[AR] New config - hasTransparency: \(config.hasTransparency), videoRGBURL: \(config.videoRGBURL)")
-            
-            // Reset loading state
-            self.loadingLabel.text = config.loadingText
-            self.overlayLabel.text = config.overlayText
+            // Load the config from the server instead of using a default
+            ConfigManager.shared.loadConfiguration(folderID: folderID) { [weak self] result in
+                guard let self = self else { return }
+                
+                switch result {
+                case .success(let config):
+                    DispatchQueue.main.async {
+                        self.config = config
+                        // Apply configuration with ConfigApplier
+                        ConfigApplier.apply(config, to: self)
             
             // Force URLCache clear for new domain
             URLCache.shared.removeAllCachedResponses()
             
             // Reload assets with new config
-            startAssetLoading()
+                        self.startAssetLoading()
             
-            print("[AR] Forced reload with new folderID: \(folderID)")
+                        ARLog.debug("Config loaded for folderID: \(folderID)")
+                    }
+                
+                case .failure(let error):
+                    ARLog.error("Failed to load config for folderID \(folderID): \(error.localizedDescription)")
+                    DispatchQueue.main.async {
+                        QRScannerHelper.openQRScanner(from: self)
+                    }
+                }
+            }
         }
     }
 
     @objc private func folderIDUpdated() {
-        print("[AR] 🔄 Received folderID update notification")
+        ARLog.debug("🔄 Received folderID update notification")
         
         if let folderID = UserDefaults.standard.string(forKey: "folderID") {
-            print("[AR] 🔄 Updating to folderID: \(folderID)")
+            ARLog.debug("🔄 Updating to folderID: \(folderID)")
             
             // Add additional validation to ensure folderID isn't corrupted
             if folderID.isEmpty {
-                print("[AR] ⚠️ Empty folderID received, using default 'ar'")
+                ARLog.warning("Empty folderID received, showing QR scanner")
+                QRScannerHelper.openQRScanner(from: self)
                 return
             }
             
-            print("[AR] ✨ Using folderID: \(folderID)")
+            ARLog.debug("✨ Using folderID: \(folderID)")
             
             // Cancel any existing asset loading
             cancelAssetLoading()
             
             // Show loading animation (only if UI is initialized)
-            if loadingLabel != nil && loadingIndicator != nil {
+            if loadingView != nil {
                 showLoadingAnimation()
-            } else {
-                print("[AR] ⚠️ Cannot show loading animation - UI not initialized yet")
+                } else {
+                ARLog.warning("Cannot show loading animation - UI not initialized yet")
             }
             
             // Force clear caches
             URLCache.shared.removeAllCachedResponses()
             UserDefaults.standard.removeObject(forKey: "config_cache_timestamp")
             UserDefaults.standard.removeObject(forKey: "cached_config")
-            print("[AR] �� Cleared all caches before loading config")
+            ARLog.debug("🧹 Cleared all caches before loading config")
             
             // Explicitly log the expected config URL
-            let configURL = "https://adagxr.com/card/\(folderID)/sample_config.json"
-            print("[AR] 🔍 Will load configuration from \(configURL)")
+            let configURL = "\(Constants.baseCardURL)/\(folderID)/\(Constants.configFilename)"
+            ARLog.debug("🔍 Will load configuration from \(configURL)")
             
             // Add cache-busting timestamp
             let timestamp = Int(Date().timeIntervalSince1970)
-            print("[AR] ⏰ Added cache-busting timestamp: \(timestamp)")
+            ARLog.debug("⏰ Added cache-busting timestamp: \(timestamp)")
             
             // Load config with direct ConfigManager call with success/failure handling
             ConfigManager.shared.loadConfiguration(folderID: folderID) { [weak self] result in
@@ -354,30 +324,26 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 
                 switch result {
                 case .success(let config):
-                    print("[AR] ✅ Successfully loaded configuration:")
-                    print("[AR] - targetImageURL: \(config.targetImageURL)")
-                    print("[AR] - videoURL: \(config.videoURL)")
-                    print("[AR] - ctaButtonText: '\(config.ctaButtonText)'")
+                    ARLog.debug("✅ Successfully loaded configuration:")
+                    ARLog.debug("- targetImageUrl: \(config.targetImageUrl)")
+                    ARLog.debug("- videoURL: \(config.videoURL)")
+                    ARLog.debug("- ctaButtonText: '\(config.ctaButtonText ?? "nil")'")
                     
                     if config.videoURL.contains("/ar/") && !config.videoURL.contains("/\(folderID)/") {
-                        print("[AR] ⚠️ WARNING: Config contains default 'ar' URLs instead of '\(folderID)'!")
+                        ARLog.warning("Config contains generic 'ar' URLs instead of '\(folderID)'!")
                     }
                     
                     DispatchQueue.main.async {
                         self.config = config
-                        self.applyConfig(config)
+                        ConfigApplier.apply(config, to: self)
                     }
                     
                 case .failure(let error):
-                    print("[AR] ❌ Failed to load configuration: \(error.localizedDescription)")
-                    print("[AR] 🔄 Falling back to default configuration")
-                    
-                    // Create a proper default config and apply it
-                    let defaultConfig = ConfigManager.shared.defaultConfiguration(for: folderID)
+                    ARLog.error("Failed to load configuration: \(error.localizedDescription)")
+                    ARLog.debug("🔄 Showing QR scanner due to config load failure")
                     
                     DispatchQueue.main.async {
-                        self.config = defaultConfig
-                        self.applyConfig(defaultConfig)
+                        QRScannerHelper.openQRScanner(from: self)
                     }
                 }
             }
@@ -395,7 +361,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         self.isUsingTransparentVideo = false
         
         // Reset loading state
-        print("[AR] Cancelling previous asset loading")
+        ARLog.debug("Cancelling previous asset loading")
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
@@ -409,22 +375,24 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     override var shouldAutorotate: Bool {
         return false
     }
-    
+
     private func checkCameraPermission() {
         AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
             DispatchQueue.main.async {
+                guard let self = self else { return }
+                
                 if granted {
-                    // 2. Setup camera feed immediately
-                    self?.setupCameraFeed()
+                    // Setup camera feed
+                    self.setupCameraFeed()
                 } else {
-                    self?.showCameraPermissionAlert()
-                }
+                    self.showCameraPermissionAlert()
+        }
             }
         }
     }
 
     private func setupCameraFeed() {
-        // Initialize ARSCNView first and show camera feed immediately
+        // Initialize ARSCNView first
         sceneView = ARSCNView(frame: self.view.bounds)
         sceneView.delegate = self
         sceneView.session.delegate = self
@@ -433,8 +401,16 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         sceneView.backgroundColor = .clear // For alpha support
         view.addSubview(sceneView)
         
-        // Start basic AR session immediately to show camera feed
+        // Disable automatic configuration
+        sceneView.automaticallyUpdatesLighting = false
+        
+        // Create AR configuration
         let configuration = ARImageTrackingConfiguration()
+        configuration.isAutoFocusEnabled = true
+        
+        // Set maximum number of tracked images
+        configuration.maximumNumberOfTrackedImages = 1
+        
         sceneView.session.run(configuration)
 
         // Setup UI elements (but keep them hidden initially)
@@ -452,27 +428,28 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     
     private func setupUIElements() {
         setupOverlay()
-        setupButton()
-        setupLoadingIndicator()
-        setupLoadingLabel()
+        setupCTAView()
+        setupLoadingView()
         setupNoInternetView()
 
         // Initially hide all UI elements
-        overlayImageView.isHidden = true
-        overlayLabel.isHidden = true
+        overlayView.hide()
         noInternetView.isHidden = true
+        
+        // Apply initial configuration to UI elements
+        ConfigApplier.apply(config, to: self)
         
         // Show loading animation
         showLoadingAnimation()
     }
     
     private func startAssetLoading() {
-        guard !config.targetImageURL.isEmpty else {
-            print("[AR] ❌ Cannot start asset loading: targetImageURL is empty")
+        guard let config = self.config, config.targetImageUrl.absoluteString.isEmpty == false else {
+            ARLog.error("Cannot start asset loading: targetImageUrl is empty")
             return
         }
         
-        print("[AR] Starting asset loading with config: \(config.targetImageURL)")
+        ARLog.debug("Starting asset loading with config: \(config.targetImageUrl)")
         
         // Log the current configuration
         logConfig()
@@ -485,327 +462,140 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             self?.showLoadingAnimation()
         }
         
-        // Start loading assets in parallel
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            // Start both loads in parallel
+        // Create an ARAssetLoader to handle asset loading
+        guard let config = self.config else {
+            ARLog.error("Cannot create ARAssetLoader: config is nil")
+            self.handleFailedAssetLoading()
+            return
+        }
+        
+        let loader = ARAssetLoader(config: config)
             let group = DispatchGroup()
             
-            // Load video
+        var loadedImage: ARReferenceImage?
+        var loadedVideo: VideoLoadingResult?
+        var loadError: Error?
+        
+        // Load reference image
             group.enter()
-            self?.preloadVideo {
+        loader.loadReferenceImage { result in
+            switch result {
+            case .success(let image): 
+                loadedImage = image
+            case .failure(let error): 
+                loadError = error
+                ARLog.error("Failed to load reference image: \(error.localizedDescription)")
+            }
                 group.leave()
             }
             
-            // Load reference image
+        // Load video
             group.enter()
-            self?.loadReferenceImage { _ in
+        loader.loadVideo { result in
+            switch result {
+            case .success(let videoResult): 
+                loadedVideo = videoResult
+            case .failure(let error): 
+                loadError = error
+                ARLog.error("Failed to load video: \(error.localizedDescription)")
+            }
                 group.leave()
             }
             
             // When both are done
-            group.notify(queue: .main) {
-                self?.handleAssetsLoaded()
-            }
+        group.notify(queue: .main) { [weak self] in
+            guard let self = self else { return }
+            
+            if let error = loadError {
+                ARLog.error("Asset loading failed: \(error.localizedDescription)")
+                self.handleFailedAssetLoading()
+            return
         }
+        
+            guard let referenceImage = loadedImage, let videoResult = loadedVideo else {
+                ARLog.error("Asset loading incomplete")
+                self.handleFailedAssetLoading()
+                return
+            }
+            
+            // Store the reference image
+            self.referenceImage = referenceImage
+            
+            // Setup appropriate video player based on the result
+            switch videoResult {
+            case .standard(let player):
+                self.videoPlayer = player
+                self.isUsingTransparentVideo = false
+                
+            case .transparent(let player):
+                self.transparentVideoPlayer = player
+                self.isUsingTransparentVideo = true
+            }
+            
+            // Mark video as ready
+            self.isVideoReady = true
+            
+            // Note: we no longer override the video plane dimensions with the reference image size
+            // The dimensions will be calculated at render time based on:
+            // - config.actualTargetImageWidthMeters (base size)
+            // - config.videoPlaneWidth (multiplier)
+            // - config.videoPlaneHeight (multiplier)
+            
+            // Process loaded assets
+            self.handleAssetsLoaded()
+                }
     }
     
     private func setupAudioSession() {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
             try AVAudioSession.sharedInstance().setActive(true)
-            print("[AR] AVAudioSession configured for playback")
-        } catch {
-            print("[AR] Failed to set up AVAudioSession: \(error.localizedDescription)")
-        }
-    }
-    
-    private func loadReferenceImage(completion: @escaping (Bool) -> Void) {
-        guard let imageURL = URL(string: config.targetImageURL) else {
-            print("[AR] Invalid image URL: \(config.targetImageURL)")
-            completion(false)
-            return
-        }
-        
-        print("[AR] Loading reference image from: \(config.targetImageURL)")
-        let task = URLSession.shared.dataTask(with: imageURL) { [weak self] data, response, error in
-            guard let self = self,
-                  let data = data,
-                  let uiImage = UIImage(data: data),
-                  let cgImage = uiImage.cgImage else {
-                print("[AR] Failed to load image: \(error?.localizedDescription ?? "Unknown error")")
-                completion(false)
-                return
-            }
-            
-            // Use the dimensions from config
-            let physicalWidth: CGFloat = self.config.videoPlaneWidth
-            let physicalHeight: CGFloat = self.config.videoPlaneHeight
-
-            // Apply additional width and height multipliers if they exist
-            var finalWidth = physicalWidth
-            var finalHeight = physicalHeight
-            
-            // Always get the addedWidth and addedHeight from config, with fallback to 1.0
-            let widthMultiplier = self.config.addedWidth ?? 1.0
-            let heightMultiplier = self.config.addedHeight ?? 1.0
-            
-            // Apply the multipliers
-            finalWidth *= widthMultiplier
-            finalHeight *= heightMultiplier
-            
-            print("[AR] 📏 Applying size multipliers: width=\(physicalWidth) * \(widthMultiplier) = \(finalWidth)")
-            print("[AR] 📏 Applying size multipliers: height=\(physicalHeight) * \(heightMultiplier) = \(finalHeight)")
-
-            self.videoPlaneWidth = finalWidth
-            self.videoPlaneHeight = finalHeight
-            
-            // Create reference image with physical width
-            let refImage = ARReferenceImage(cgImage, orientation: .up, physicalWidth: finalWidth)
-            refImage.name = "targetImage"
-            self.referenceImage = refImage
-            
-            // Update overlay image if needed - only if the overlay image isn't already set
-            DispatchQueue.main.async {
-                if self.overlayImageView.image == nil {
-                    self.overlayImageView.image = uiImage
-                    print("[AR] Set overlay image from reference image")
-                }
-            }
-
-            print("[AR] ✅ Reference image loaded successfully with dimensions: \(finalWidth) x \(finalHeight)")
-            completion(true)
-        }
-        task.resume()
-    }
-    
-    private func preloadVideo(completion: @escaping () -> Void) {
-        // Check if we should use transparent video mode
-        if config.hasTransparency {
-            print("[AR] 🎬 Using transparent video mode with separate RGB+Alpha videos")
-            
-            // Create URLs for RGB and Alpha videos
-            guard let rgbURL = URL(string: config.videoRGBURL),
-                  let alphaURL = URL(string: config.videoAlphaURL) else {
-                print("[AR] ❌ Invalid RGB or Alpha URLs: \(config.videoRGBURL), \(config.videoAlphaURL)")
-                completion()
-                return
-            }
-
-            // Create and set up transparent video player
-            let transparentPlayer = TransparentVideoPlayer()
-            self.transparentVideoPlayer = transparentPlayer
-            
-            // Set callback for when videos are ready
-            transparentPlayer.onReadyCallback = { [weak self] in
-                DispatchQueue.main.async {
-                    self?.isVideoReady = true
-                    self?.isUsingTransparentVideo = true
-                    print("[AR] ✅ Transparent video is ready with RGB+Alpha")
-                    completion()
-                }
-            }
-            
-            // Set callback for errors
-            transparentPlayer.onErrorCallback = { [weak self] error in
-                print("[AR] ❌ Transparent video error: \(error.localizedDescription)")
-                print("[AR] 🔄 Falling back to standard video mode")
-                
-                // Fall back to standard video if available
-                if let videoURL = URL(string: self?.config.videoRGBURL ?? "") {
-                    self?.loadStandardVideo(videoURL: videoURL, completion: completion)
-                } else {
-                    DispatchQueue.main.async {
-                        completion()
-                    }
-                }
-            }
-            
-            // Load RGB and Alpha videos
-            transparentPlayer.loadVideos(rgbURL: rgbURL, alphaURL: alphaURL) { success in
-                if !success {
-                    print("[AR] ❌ Failed to load transparent videos, falling back to standard video")
-                    // Fall back to standard video
-                    if let videoURL = URL(string: self.config.videoRGBURL) {
-                        self.loadStandardVideo(videoURL: videoURL, completion: completion)
-                    } else {
-                        DispatchQueue.main.async {
-                            completion()
-                        }
-                    }
-                }
-            }
-            
-            return
-        }
-        
-        // Standard video mode (non-transparent) - use RGB HLS stream
-        guard let videoURL = URL(string: self.config.videoRGBURL) else {
-            print("[AR] Invalid video RGB URL: \(config.videoRGBURL)")
-            completion()
-            return
-        }
-
-        loadStandardVideo(videoURL: videoURL, completion: completion)
-    }
-    
-    private func loadStandardVideo(videoURL: URL, completion: @escaping () -> Void) {
-        print("[AR] 🎬 Using standard video mode: \(videoURL.absoluteString)")
-        isUsingTransparentVideo = false
-
-        // Check for HLS stream (.m3u8)
-        if videoURL.pathExtension.lowercased() == "m3u8" {
-            print("[AR] Detected HLS stream (.m3u8), using AVPlayer directly")
-            setupVideoPlayer(with: videoURL, isHLS: true) {
-                completion()
-            }
-            return
-        }
-
-        print("[AR] 📥 DOWNLOADING video from: \(videoURL.absoluteString)")
-        
-        // First, download the entire video to local storage
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        
-        // Create a uniquely named file based on the URL to avoid conflicts
-        let folderID = URL.extractFolderID(from: config.videoRGBURL) ?? "video"
-        let destinationURL = documentsPath.appendingPathComponent("\(folderID)_cached_video.mov")
-        
-        // Always ensure we can write a new file
-        if FileManager.default.fileExists(atPath: destinationURL.path) {
-            do {
-                try FileManager.default.removeItem(at: destinationURL)
-                print("[AR] 🗑️ Removed existing video file to prevent conflicts")
+            ARLog.debug("AVAudioSession configured for playback")
             } catch {
-                print("[AR] ⚠️ Could not remove existing file: \(error.localizedDescription)")
-                // Try to use the existing file if it exists
-                self.setupVideoPlayer(with: destinationURL) {
-                    completion()
-                }
-                return
-            }
-        }
-        
-        // Create download task to get the entire video file
-        let downloadTask = URLSession.shared.downloadTask(with: videoURL) { [weak self] (tempURL, response, error) in
-            guard let self = self else { 
-                completion()
-                return 
-            }
-            
-            if let error = error {
-                print("[AR] ❌ VIDEO DOWNLOAD FAILED: \(error.localizedDescription)")
-                DispatchQueue.main.async {
-                    completion()
-                }
-                return
-            }
-            
-            guard let tempURL = tempURL else {
-                print("[AR] ❌ VIDEO DOWNLOAD FAILED: No temporary URL")
-                DispatchQueue.main.async {
-                    completion()
-                }
-                return
-            }
-            
-            // Move the downloaded file to our documents directory
-            do {
-                // If file exists, remove it first
-                if FileManager.default.fileExists(atPath: destinationURL.path) {
-                    try FileManager.default.removeItem(at: destinationURL)
-                    print("[AR] 🔄 Removed existing cached video before saving new one")
-                }
-                
-                try FileManager.default.moveItem(at: tempURL, to: destinationURL)
-                print("[AR] ✅ Video downloaded successfully to: \(destinationURL.path)")
-                
-                // Set up video player with the cached file
-                self.setupVideoPlayer(with: destinationURL) {
-                    completion()
-                }
-            } catch {
-                print("[AR] ❌ ERROR saving downloaded video: \(error.localizedDescription)")
-                
-                // Try to use existing file if available
-                if FileManager.default.fileExists(atPath: destinationURL.path) {
-                    print("[AR] 🔄 Using existing cached video file")
-                    self.setupVideoPlayer(with: destinationURL) {
-                        completion()
-                    }
-                } else {
-                    DispatchQueue.main.async {
-                        completion()
-                    }
-                }
-            }
-        }
-        
-        downloadTask.resume()
-    }
-    
-    // Separate method to set up the video player
-    private func setupVideoPlayer(with videoURL: URL, isHLS: Bool = false, completion: @escaping () -> Void) {
-        // First pause and release any existing player to prevent multiple playing
-        if let existingPlayer = self.videoPlayer {
-            existingPlayer.pause()
-        }
-        self.videoPlayer = nil
-        
-        let asset = AVURLAsset(url: videoURL)
-        
-        // Create player item
-        let playerItem = AVPlayerItem(asset: asset)
-        playerItem.addObserver(self, forKeyPath: "status", options: [.new, .initial], context: nil)
-        
-        // Create player with an explicit rate to ensure it plays
-        let player = AVPlayer(playerItem: playerItem)
-        player.automaticallyWaitsToMinimizeStalling = false
-        player.actionAtItemEnd = .none // Needed for proper looping
-        // Don't mute audio to allow sound playback
-        // player.isMuted = true  // This line was muting the audio
-        
-        // Set up video looping
-        NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: nil)
-        NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: playerItem,
-            queue: .main
-        ) { [weak player] _ in
-            print("[AR] Video reached end, looping back to start")
-            player?.seek(to: .zero)
-            player?.play()
-        }
-        
-        // Store player and mark as ready
-            self.videoPlayer = player
-            self.isVideoReady = true
-        
-        print("[AR] ✅ Video is FULLY LOADED and ready with looping enabled")
-        
-        // Complete setup
-        DispatchQueue.main.async {
-            completion()
+            ARLog.error("Failed to set up AVAudioSession: \(error.localizedDescription)")
         }
     }
     
     private func handleAssetsLoaded() {
         guard let referenceImage = self.referenceImage else { 
-            print("[AR] ❌ ERROR: No reference image loaded")
+            ARLog.error("ERROR: No reference image loaded")
             return
         }
         
         if !isVideoReady {
-            print("[AR] ⚠️ WARNING: Video is not yet ready, waiting for video...")
+            ARLog.warning("Video is not yet ready, waiting for video...")
             // Show loading state until video is ready
             DispatchQueue.main.async { [weak self] in
                 guard let self = self, 
-                      let loadingLabel = self.loadingLabel else {
-                    print("[AR] ⚠️ Cannot update loading state - UI not initialized")
-                    return
-                }
-                
+                      let _ = self.loadingView else {
+                    ARLog.warning("Cannot update loading state - UI not initialized")
+            return
+        }
+        
                 self.showLoadingAnimation()
-                loadingLabel.text = "Preparing AR experience..."
+                // Use a temporary config object for loading state
+                let tempConfig = self.config ?? ARConfig(
+                    scanningTextContent: "Scan this image",
+                    loadingText: "Preparing your experience",
+                    
+                    targetImageUrl: URL(string: "")!,
+                    overlayOpacity: 1.0,
+                    
+                    videoWithTransparency: false,
+                    videoRgbUrl: URL(string: ""),
+                    videoAlphaUrl: URL(string: ""),
+                    
+                    actualTargetImageWidthMeters: 0.1,
+                    videoPlaneWidth: 1.0,
+                    videoPlaneHeight: 1.41431,
+                    
+                    ctaVisible: true,
+                    ctaButtonText: "",
+                    ctaButtonColorHex: "#F84B07",
+                    ctaDelayMs: 1000,
+                    ctaButtonURL: URL(string: "https://effectizationstudio.com")
+                )
+                ConfigApplier.applyLoadingView(tempConfig, to: self)
             }
             
             // Try again in 0.5 seconds
@@ -815,10 +605,11 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
         
-        print("[AR] ✅ All assets fully loaded, proceeding to AR experience")
+        ARLog.debug("✅ All assets fully loaded, proceeding to AR experience")
             
         // Update AR configuration with loaded reference image
                 let configuration = ARImageTrackingConfiguration()
+                configuration.isAutoFocusEnabled = true
                 configuration.trackingImages = [referenceImage]
                 configuration.maximumNumberOfTrackedImages = 1
                 
@@ -829,20 +620,15 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             // Hide loading animation
                     self.hideLoadingAnimation()
             
-            // Explicitly set overlay text from config
-            if let overlayLabel = self.overlayLabel {
-                overlayLabel.text = self.config.overlayText
-                print("[AR] 📝 Set overlay text to: '\(self.config.overlayText)'")
-            }
+            // Apply config using ConfigApplier to update UI elements
+            ConfigApplier.applyOverlayView(self.config, to: self)
             
             // Show scan overlay with appropriate text
-            if let overlayImageView = self.overlayImageView, 
-               let overlayLabel = self.overlayLabel {
-                overlayImageView.isHidden = false
-                overlayLabel.isHidden = false
-                print("[AR] 👁️ Showing 'Scan this image' overlay")
+            if let overlayView = self.overlayView {
+                overlayView.show()
+                ARLog.debug("👁️ Showing 'Scan this image' overlay")
             } else {
-                print("[AR] ⚠️ Cannot show overlay - UI not initialized")
+                ARLog.warning("Cannot show overlay - UI not initialized")
             }
             
             // Add small delay before updating AR session to prevent lag
@@ -852,10 +638,28 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                     // Update session configuration
                 sceneView.session.run(configuration, options: [.removeExistingAnchors])
                     self.areAssetsLoaded = true
-                    print("[AR] 🎯 AR session started and ready for tracking")
+                    ARLog.debug("🎯 AR session started and ready for tracking")
                 } else {
-                    print("[AR] ⚠️ Cannot update AR session - sceneView not initialized")
+                    ARLog.warning("Cannot update AR session - sceneView not initialized")
                 }
+            }
+        }
+    }
+
+    private func handleFailedAssetLoading() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Hide loading animation
+            self.hideLoadingAnimation()
+            
+            // Show appropriate UI based on network status
+            if NetworkMonitor.shared.isConnected {
+                // Network is up but asset loading failed -> Show QR scanner
+                QRScannerHelper.openQRScanner(from: self)
+            } else {
+                // Network is down -> Show network error view
+                self.showNetworkErrorView()
             }
         }
     }
@@ -868,74 +672,32 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 guard let self = self else { return }
                 
                 // Only show network error if we have a config with valid URLs but can't load them
-                let hasValidConfig = !self.config.targetImageURL.isEmpty && !self.config.videoURL.isEmpty
+                let hasValidConfig = self.config != nil && 
+                    (self.config?.targetImageUrl.absoluteString.isEmpty == false) && 
+                    (self.config?.videoURL.isEmpty == false)
                 
                 if path.status == .satisfied {
-                    print("[AR] Network connection available")
+                    ARLog.debug("Network connection available")
                     // If we have a config and aren't showing assets yet, retry loading
                     if hasValidConfig && !self.areAssetsLoaded {
-                        print("[AR] Retry loading assets with valid config")
+                        ARLog.debug("Retry loading assets with valid config")
                         self.hideNetworkError()
                         self.retryLoadingAssets()
                     }
                 } else if hasValidConfig {
                     // Only show the error if we have a valid config but no network
-                    print("[AR] Network connection unavailable")
+                    ARLog.debug("Network connection unavailable")
                     if !self.areAssetsLoaded {
                         self.showNetworkError()
                     }
                 } else {
-                    print("[AR] Waiting for configuration before checking network requirement")
+                    ARLog.debug("Waiting for configuration before checking network requirement")
                     // Show loading state if we don't have a config yet
                     self.hideNetworkError()
-                }
             }
+        }
         }
         networkMonitor?.start(queue: DispatchQueue.global())
-    }
-
-    private func setupRetryButton() {
-        retryButton = UIButton(type: .system)
-        retryButton.setTitle("Retry", for: .normal)
-        retryButton.setTitleColor(.white, for: .normal)
-        retryButton.backgroundColor = UIColor(red: 248/255, green: 75/255, blue: 7/255, alpha: 1.0)
-        retryButton.layer.cornerRadius = 25
-        retryButton.clipsToBounds = true
-        retryButton.isHidden = true
-        retryButton.translatesAutoresizingMaskIntoConstraints = false
-        retryButton.addTarget(self, action: #selector(retryButtonTapped), for: .touchUpInside)
-        view.addSubview(retryButton)
-
-        NSLayoutConstraint.activate([
-            retryButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            retryButton.topAnchor.constraint(equalTo: loadingLabel.bottomAnchor, constant: 20),
-            retryButton.widthAnchor.constraint(equalToConstant: 120),
-            retryButton.heightAnchor.constraint(equalToConstant: 50)
-        ])
-    }
-
-    @objc private func retryButtonTapped() {
-        print("[AR] Retry button tapped")
-        // Always try to retry, don't rely on networkMonitor's current status which might be stale
-        hideNetworkError()
-        
-        // Try loading config again
-        if let url = launchURL {
-            print("[AR] Re-processing launch URL: \(url)")
-            processLaunchURL(url)
-        } else {
-            // If no URL available, try with current config
-            if !config.targetImageURL.isEmpty && !config.videoURL.isEmpty {
-                retryLoadingAssets()
-            } else {
-                // Post a notification to reload config
-                print("[AR] Requesting config reload")
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("RequestConfigReloadNotification"),
-                    object: nil
-                )
-            }
-        }
     }
 
     private func retryLoadingAssets() {
@@ -944,34 +706,16 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         // Ensure we're showing the loading state
         hideNetworkError()
         
-        print("[AR] Retrying asset loading with config: \(config.targetImageURL)")
+        ARLog.debug("Retrying asset loading with config: \(config?.targetImageUrl.absoluteString ?? "")")
         
         // First check if we have valid config
-        if config.targetImageURL.isEmpty || config.videoURL.isEmpty {
-            print("[AR] Cannot load assets without valid config")
+        if config?.targetImageUrl.absoluteString.isEmpty == true || config?.videoURL.isEmpty == true {
+            ARLog.debug("Cannot load assets without valid config")
             return
         }
         
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let group = DispatchGroup()
-            
-            // Load video
-            group.enter()
-            self?.preloadVideo {
-                group.leave()
-            }
-            
-            // Load reference image
-            group.enter()
-            self?.loadReferenceImage { _ in
-                group.leave()
-            }
-            
-            // When both are done
-            group.notify(queue: .main) {
-                self?.handleAssetsLoaded()
-            }
-        }
+        // Use ARAssetLoader to load assets
+        startAssetLoading()
     }
 
     private func startLoadingTimeout() {
@@ -982,36 +726,8 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     }
 
     private func handleLoadingTimeout() {
-        print("[AR] Loading timeout reached")
+        ARLog.debug("Loading timeout reached")
         showNetworkError()
-    }
-
-    private func handleSuccessfulAssetLoading() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
-            self.loadingTimer?.invalidate()
-            self.retryCount = 0
-            self.hideLoadingAnimation()
-            self.noInternetView.isHidden = true
-            self.areAssetsLoaded = true
-            
-            if let referenceImage = self.referenceImage {
-                let configuration = ARImageTrackingConfiguration()
-                configuration.trackingImages = [referenceImage]
-                configuration.maximumNumberOfTrackedImages = 1
-                
-                self.sceneView.session.run(configuration, options: [.removeExistingAnchors])
-                self.overlayImageView.isHidden = false
-                self.overlayLabel.isHidden = false
-            }
-        }
-    }
-
-    private func handleFailedAssetLoading() {
-        DispatchQueue.main.async { [weak self] in
-            self?.showNetworkError()
-        }
     }
 
     private func showNetworkError() {
@@ -1021,9 +737,8 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             guard let self = self else { return }
             
             self.hideLoadingAnimation()
-            self.overlayImageView.isHidden = true
-            self.overlayLabel.isHidden = true
-            self.noInternetView.isHidden = false
+            self.overlayView.hide()
+            self.noInternetView.show()
         }
     }
 
@@ -1031,7 +746,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
-            self.noInternetView.isHidden = true
+            self.noInternetView.hide()
                     self.showLoadingAnimation()
                 }
     }
@@ -1041,75 +756,45 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             guard let self = self else { return }
 
             // Just keep showing the no internet view
-            self.noInternetView.isHidden = false
+            self.noInternetView.show()
         }
     }
 
     private func setupNoInternetView() {
-        // Main container view
-        noInternetView = UIView()
-        noInternetView.backgroundColor = .black
+        noInternetView = NoInternetView(frame: view.bounds)
         noInternetView.translatesAutoresizingMaskIntoConstraints = false
         noInternetView.isHidden = true
+        
+        // Set up retry callback
+        noInternetView.onRetry = { [weak self] in
+            guard let self = self else { return }
+            ARLog.debug("Retry button tapped")
+
+            // Try loading config again
+            if let url = self.launchURL {
+                ARLog.debug("Re-processing launch URL: \(url)")
+                self.hideNetworkError()
+                self.processLaunchURL(url)
+            } else {
+                // If no URL available, try with current config
+                if self.config != nil && 
+                   (self.config?.targetImageUrl.absoluteString.isEmpty == false) && 
+                   (self.config?.videoURL.isEmpty == false) {
+                    self.hideNetworkError()
+                    self.retryLoadingAssets()
+                } else {
+                    // Post a notification to reload config
+                    ARLog.debug("Requesting config reload")
+                    self.hideNetworkError()
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("RequestConfigReloadNotification"),
+                        object: nil
+                    )
+                }
+            }
+        }
+        
         view.addSubview(noInternetView)
-        
-        // No internet image - full screen
-        noInternetImageView = UIImageView(image: UIImage(named: "noInternetClip"))
-        noInternetImageView.contentMode = .scaleAspectFill
-        noInternetImageView.translatesAutoresizingMaskIntoConstraints = false
-        noInternetView.addSubview(noInternetImageView)
-
-        // Create a gradient overlay for better text visibility
-        let gradientView = UIView()
-        gradientView.translatesAutoresizingMaskIntoConstraints = false
-        noInternetView.addSubview(gradientView)
-        
-        let gradientLayer = CAGradientLayer()
-        gradientLayer.colors = [
-            UIColor.black.withAlphaComponent(0.0).cgColor,
-            UIColor.black.withAlphaComponent(0.8).cgColor
-        ]
-        gradientLayer.locations = [0.0, 1.0]
-        gradientLayer.frame = view.bounds
-        gradientView.layer.addSublayer(gradientLayer)
-        gradientView.tag = 100
-
-        // Container for text and button
-        let contentStack = UIStackView()
-        contentStack.axis = .vertical
-        contentStack.spacing = 16
-        contentStack.alignment = .center
-        contentStack.translatesAutoresizingMaskIntoConstraints = false
-        noInternetView.addSubview(contentStack)
-        
-        // No Internet text
-        let noInternetLabel = UILabel()
-        noInternetLabel.text = "NO INTERNET"
-        noInternetLabel.textColor = .white
-        noInternetLabel.font = .systemFont(ofSize: 24, weight: .bold)
-        noInternetLabel.textAlignment = .center
-
-        // Subtitle
-        let subtitleLabel = UILabel()
-        subtitleLabel.text = "You are not online"
-        subtitleLabel.textColor = .white
-        subtitleLabel.font = .systemFont(ofSize: 17, weight: .regular)
-        subtitleLabel.textAlignment = .center
-
-        // Add labels to stack
-        contentStack.addArrangedSubview(noInternetLabel)
-        contentStack.addArrangedSubview(subtitleLabel)
-
-        // Retry button
-        retryButton = UIButton(type: .system)
-        retryButton.setTitle("RETRY", for: .normal)
-        retryButton.setTitleColor(.black, for: .normal)
-        retryButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
-        retryButton.backgroundColor = UIColor(red: 198/255, green: 255/255, blue: 0/255, alpha: 1.0)
-        retryButton.layer.cornerRadius = 25
-        retryButton.translatesAutoresizingMaskIntoConstraints = false
-        retryButton.addTarget(self, action: #selector(retryButtonTapped), for: .touchUpInside)
-        noInternetView.addSubview(retryButton)
 
         // Portrait-only constraints
         NSLayoutConstraint.activate([
@@ -1117,78 +802,43 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             noInternetView.topAnchor.constraint(equalTo: view.topAnchor),
             noInternetView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             noInternetView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            noInternetView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            // Image view (full screen)
-            noInternetImageView.topAnchor.constraint(equalTo: view.topAnchor),
-            noInternetImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            noInternetImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            noInternetImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            // Gradient view
-            gradientView.topAnchor.constraint(equalTo: noInternetView.topAnchor),
-            gradientView.leadingAnchor.constraint(equalTo: noInternetView.leadingAnchor),
-            gradientView.trailingAnchor.constraint(equalTo: noInternetView.trailingAnchor),
-            gradientView.bottomAnchor.constraint(equalTo: noInternetView.bottomAnchor),
-
-            // Content stack
-            contentStack.centerXAnchor.constraint(equalTo: noInternetView.centerXAnchor),
-            contentStack.bottomAnchor.constraint(equalTo: retryButton.topAnchor, constant: -24),
-
-            // Retry button
-            retryButton.centerXAnchor.constraint(equalTo: noInternetView.centerXAnchor),
-            retryButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            retryButton.widthAnchor.constraint(equalTo: noInternetView.widthAnchor, multiplier: 0.9),
-            retryButton.heightAnchor.constraint(equalToConstant: 50)
+            noInternetView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
-    }
+            }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         noInternetView?.frame = view.bounds
-        // Update gradient layer frame
-        if let gradientView = noInternetView?.viewWithTag(100),
-           let gradientLayer = gradientView.layer.sublayers?.first as? CAGradientLayer {
-            gradientLayer.frame = gradientView.bounds
-        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.runARSession()
-            print("[AR] AR session started.")
-        }
+            ARLog.debug("AR session started.")
+            }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         sceneView.session.pause()
-        print("[AR] AR session paused.")
-    }
+        ARLog.debug("AR session paused.")
+        }
 
     func runARSession() {
         guard ARImageTrackingConfiguration.isSupported else {
-            print("[AR] AR Image tracking is not supported on this device")
+            ARLog.debug("AR Image tracking is not supported on this device")
             return
         }
         
         // Ensure sceneView is initialized
         guard sceneView != nil else {
-            print("[AR] ARSCNView not initialized")
+            ARLog.debug("ARSCNView not initialized")
             return
         }
         
-        // Load reference image, then update configuration
-        loadReferenceImage { [weak self] success in
-            guard let self = self else { return }
-            
-            if success {
-                self.handleSuccessfulAssetLoading()
-            } else {
-                self.handleFailedAssetLoading()
-            }
-        }
+        // Start asset loading to prepare AR experience
+        startAssetLoading()
     }
 
     // Called when the AR session updates anchors (used to check tracking status)
@@ -1201,7 +851,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
                     
-                    print("[AR] Image tracking lost. Showing overlay and pausing video.")
+                    ARLog.debug("Image tracking lost. Showing overlay and pausing video.")
                     
                     // Only perform actions if state has actually changed
                     if self.isImageTracked {
@@ -1211,10 +861,10 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                             // Pause video playback
                             if isUsingTransparentVideo {
                                 self.transparentVideoPlayer?.pause()
-                                print("[AR] Transparent video paused")
+                                ARLog.debug("Transparent video paused")
                             } else if let player = self.videoPlayer {
                             player.pause()
-                            print("[AR] Video paused")
+                            ARLog.debug("Video paused")
                         }
                         
                             // Do NOT hide the CTA button once it has been shown
@@ -1226,7 +876,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
                     
-                    print("[AR] Image detected/re-detected. Hiding overlay and playing video.")
+                    ARLog.debug("Image detected/re-detected. Hiding overlay and playing video.")
                     
                     // Only perform actions if state has actually changed
                     if !self.isImageTracked {
@@ -1240,21 +890,21 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                                 // Resume video playback
                                 if self.isUsingTransparentVideo {
                                     self.transparentVideoPlayer?.play()
-                                    print("[AR] Transparent video playback started/resumed")
+                                    ARLog.debug("Transparent video playback started/resumed")
                                 } else if let player = self.videoPlayer {
                             // Ensure playback starts from beginning if it's a new detection
                             if player.currentTime() == .zero {
                                 player.seek(to: .zero)
                             }
                             player.play()
-                            print("[AR] Video playback started/resumed")
+                            ARLog.debug("Video playback started/resumed")
                         } else {
-                            print("[AR] Cannot play video - player not initialized")
+                            ARLog.warning("Cannot play video - player not initialized")
                         }
                         
                                 // Show the CTA button with a delay if it hasn't been shown yet
                                 if !self.hasShownCTAButton {
-                        print("[AR] 🔄 Showing CTA button after detection")
+                        ARLog.debug("🔄 Showing CTA button after detection")
                         self.showButtonWithDelay()
                                 }
                             }
@@ -1269,7 +919,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         for anchor in anchors {
             if anchor is ARImageAnchor {
                 DispatchQueue.main.async {
-                    print("[AR] Image anchor removed. Image is no longer being tracked.")
+                    ARLog.debug("Image anchor removed. Image is no longer being tracked.")
                     if self.isImageTracked {
                         self.showOverlay()
                         self.isImageTracked = false
@@ -1292,14 +942,14 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         
         // Reset CTA button state
         hasShownCTAButton = false
-        actionButton?.isHidden = true
+        ctaView?.isHidden = true
         
         // Remove existing video plane
         videoPlaneNode?.removeFromParentNode()
         videoPlaneNode = nil
         
         sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
-        print("[AR] AR session reset.")
+        ARLog.debug("AR session reset.")
     }
 
     // MARK: - ARSCN View Delegate
@@ -1307,25 +957,16 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
         // Only proceed if an image anchor was detected
         guard let imageAnchor = anchor as? ARImageAnchor else {
-            print("[AR] Anchor detected but it's not an image anchor")
+            ARLog.debug("Anchor detected but it's not an image anchor")
             return
         }
         
         // Check if video is ready
-        if !isVideoReady || videoPlayer == nil {
-            print("[AR] Image detected but video player not ready")
-            // Try to load the video again if it failed
             if !isVideoReady {
-                print("[AR] Attempting to reload video")
-                preloadVideo { [weak self] in
-                    guard let self = self, self.isVideoReady, self.videoPlayer != nil else {
-                        print("[AR] Failed to load video after image detection")
-                        return
-                    }
-                    // Create video plane now that video is ready
-                    self.createVideoPlane(for: node, with: imageAnchor)
-                }
-            }
+            ARLog.debug("Image detected but video player not ready")
+            // If the image is detected but video isn't ready, try reloading assets
+            ARLog.debug("Attempting to reload assets")
+            startAssetLoading()
             return
         }
         
@@ -1336,70 +977,76 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     private func createVideoPlane(for node: SCNNode, with imageAnchor: ARImageAnchor) {
         // Check if we're using transparent video
         if isUsingTransparentVideo, let transparentPlayer = self.transparentVideoPlayer {
-            print("[AR] 🎬 Creating video plane with transparent RGB+Alpha video")
+            ARLog.debug("🎬 Creating video plane with transparent RGB+Alpha video")
             
             // Remove previous video plane if it exists
             videoPlaneNode?.removeFromParentNode()
             videoPlaneNode = nil
             
-            // Create a plane with the proper dimensions
-            let videoPlane = SCNPlane(width: self.videoPlaneWidth, height: self.videoPlaneHeight)
+            // 1) Compute final dimensions from config
+            let baseSize = config?.actualTargetImageWidthMeters ?? 0.1
+            let widthMeters = baseSize * (config?.videoPlaneWidth ?? 1.0)
+            let heightMeters = baseSize * (config?.videoPlaneHeight ?? 1.0)
+        
+            // 2) Create a custom SCNPlane
+            let videoPlane = SCNPlane(width: widthMeters, height: heightMeters)
             
             // Get material from transparent video player
             let videoMaterial = transparentPlayer.getMaterial()
-            
+        
             // Print debug info
-            print("[AR] 📐 Creating transparent video plane with dimensions: \(videoPlaneWidth) x \(videoPlaneHeight)")
-            
-            // Apply the material to the plane
-            videoPlane.materials = [videoMaterial]
-            
-            // Create a node with the plane geometry
-            let planeNode = SCNNode(geometry: videoPlane)
-            
-            // Position the node at the anchor's center
-            planeNode.eulerAngles.x = -.pi / 2  // Rotate to face the camera
-            
+            ARLog.debug("📐 Creating transparent video plane with dimensions: \(widthMeters) x \(heightMeters)")
+            ARLog.debug("📐 Base size: \(baseSize), multipliers: \(config?.videoPlaneWidth ?? 1.0) x \(config?.videoPlaneHeight ?? 1.0)")
+        
+        // Apply the material to the plane
+        videoPlane.materials = [videoMaterial]
+        
+            // 3) Create and orient the node
+        let planeNode = SCNNode(geometry: videoPlane)
+        
+        // Position the node at the anchor's center
+        planeNode.eulerAngles.x = -.pi / 2  // Rotate to face the camera
+                
             // Store the plane node reference
             videoPlaneNode = planeNode
-            
-            // Add the plane node to the anchor's node
-            node.addChildNode(planeNode)
-            
+        
+        // Add the plane node to the anchor's node
+        node.addChildNode(planeNode)
+        
             // Start playing transparent video
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                
-                if imageAnchor.isTracked {
-                    // Set tracking state
-                    self.isImageTracked = true
-                    
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            if imageAnchor.isTracked {
+                // Set tracking state
+                self.isImageTracked = true
+                        
                     // Add a small delay to smooth transition
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         // Start playing the video
                         transparentPlayer.play()
-                        
-                        // Hide overlay and show button
-                        self.hideOverlay()
-                        self.showButtonWithDelay()
-                        
-                        print("[AR] ✅ Transparent video plane added and playback started")
+                
+                // Hide overlay and show button
+                self.hideOverlay()
+                self.showButtonWithDelay()
+                
+                        ARLog.debug("✅ Transparent video plane added and playback started")
                     }
-                } else {
-                    // Image might not be tracked yet
-                    print("[AR] ⚠️ Image anchor added but not yet tracked")
+            } else {
+                // Image might not be tracked yet
+                    ARLog.debug("⚠️ Image anchor added but not yet tracked")
                     transparentPlayer.pause()
-                    self.isImageTracked = false
-                    self.showOverlay()
-                }
+                self.isImageTracked = false
+                self.showOverlay()
             }
-            
-            return
         }
+                
+            return
+    }
 
         // Standard video mode - HLS stream (non-transparent)
         guard let videoPlayer = self.videoPlayer else {
-            print("[AR] Cannot create video plane: no video player")
+            ARLog.debug("Cannot create video plane: no video player")
             return
         }
         
@@ -1407,10 +1054,15 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         videoPlaneNode?.removeFromParentNode()
         videoPlaneNode = nil
         
-        print("[AR] 🎬 Image anchor detected, adding video plane for HLS stream")
+        ARLog.debug("🎬 Image anchor detected, adding video plane for HLS stream")
         
-        // Create a plane geometry for the video
-        let videoPlane = SCNPlane(width: self.videoPlaneWidth, height: self.videoPlaneHeight)
+        // 1) Compute final dimensions from config
+        let baseSize = config?.actualTargetImageWidthMeters ?? 0.1
+        let widthMeters = baseSize * (config?.videoPlaneWidth ?? 1.0)
+        let heightMeters = baseSize * (config?.videoPlaneHeight ?? 1.0)
+        
+        // 2) Create a custom SCNPlane
+        let videoPlane = SCNPlane(width: widthMeters, height: heightMeters)
         
         // Create a material for the plane with the video player
         let videoMaterial = SCNMaterial()
@@ -1418,7 +1070,7 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         videoMaterial.isDoubleSided = true
         
         // Set transparency mode based on config
-        if config.hasTransparency {
+        if config?.videoWithTransparency == true {
             // Enable transparency for alpha channel support
             videoMaterial.transparencyMode = .dualLayer
             videoMaterial.blendMode = .alpha
@@ -1431,13 +1083,14 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
         
         // Print debug info about the plane and material
-        print("[AR] 📐 Creating video plane with dimensions: \(videoPlaneWidth) x \(videoPlaneHeight)")
-        print("[AR] 🎥 Setting video player as plane material contents, hasTransparency: \(config.hasTransparency)")
+        ARLog.debug("📐 Creating video plane with dimensions: \(widthMeters) x \(heightMeters)")
+        ARLog.debug("📐 Base size: \(baseSize), multipliers: \(config?.videoPlaneWidth ?? 1.0) x \(config?.videoPlaneHeight ?? 1.0)")
+        ARLog.debug("🎥 Setting video player as plane material contents, videoWithTransparency: \(config?.videoWithTransparency == true)")
         
         // Apply the material to the plane
         videoPlane.materials = [videoMaterial]
         
-        // Create a node with the plane geometry
+        // 3) Create and orient the node
         let planeNode = SCNNode(geometry: videoPlane)
         
         // Position the node at the anchor's center
@@ -1459,228 +1112,115 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 
                 // Add a small delay to smooth transition
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                // Start playing the video immediately
-                videoPlayer.seek(to: .zero)
-                videoPlayer.play()
-                
-                // Hide overlay and show button
-                self.hideOverlay()
-                self.showButtonWithDelay()
-                
-                print("[AR] ✅ Video plane added and video playback started")
+                    // Start playing the video immediately
+                    videoPlayer.seek(to: .zero)
+                    videoPlayer.play()
+                    
+                    // Hide overlay and show button
+                    self.hideOverlay()
+                    self.showButtonWithDelay()
+                    
+                    ARLog.debug("✅ Video plane added and video playback started")
                 }
             } else {
                 // Image might not be tracked yet
-                print("[AR] ⚠️ Image anchor added but not yet tracked")
+                ARLog.debug("⚠️ Image anchor added but not yet tracked")
                 videoPlayer.pause()
                 self.isImageTracked = false
                 self.showOverlay()
-            }
+        }
         }
     }
 
     // Set up the overlay image and label displayed initially
     func setupOverlay() {
-        // Create overlay image view without initial image
-        overlayImageView = UIImageView()
-        overlayImageView.contentMode = .scaleAspectFit
-        overlayImageView.alpha = 0.8
-        overlayImageView.translatesAutoresizingMaskIntoConstraints = false
-        overlayImageView.isHidden = true // Start hidden
-        view.addSubview(overlayImageView)
+        overlayView = OverlayView(frame: view.bounds)
+        overlayView.translatesAutoresizingMaskIntoConstraints = false
         
-        // Create overlay label with config text
-        overlayLabel = UILabel()
-        
-        // Ensure we set the text from config
-        if !config.overlayText.isEmpty {
-            overlayLabel.text = config.overlayText
-            print("[AR] Initial overlay text set: '\(config.overlayText)'")
-        } else {
-        overlayLabel.text = "Scan this image"
-            print("[AR] Using default overlay text: 'Scan this image'")
-        }
-        
-        overlayLabel.textColor = .white
-        overlayLabel.textAlignment = .center
-        overlayLabel.font = UIFont.systemFont(ofSize: 17, weight: .medium)
-        overlayLabel.translatesAutoresizingMaskIntoConstraints = false
-        overlayLabel.isHidden = true // Start hidden
-        view.addSubview(overlayLabel)
+        // Set initial text from config using ConfigApplier
+        // We'll apply the full config later, just initialize with empty state
+        overlayView.hide() // Start hidden
+        view.addSubview(overlayView)
 
         NSLayoutConstraint.activate([
-            overlayImageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            overlayImageView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            overlayImageView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.7),
-            overlayImageView.heightAnchor.constraint(equalTo: overlayImageView.widthAnchor, multiplier: 1.5),
-
-            overlayLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            overlayLabel.topAnchor.constraint(equalTo: overlayImageView.bottomAnchor, constant: 20)
+            overlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            overlayView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            overlayView.topAnchor.constraint(equalTo: view.topAnchor),
+            overlayView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
     }
 
-    // Set up the button displayed after image detection
-    func setupButton() {
-        // Create blur effect view with modern style
-        let blurEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-        let blurView = UIVisualEffectView(effect: blurEffect)
-        blurView.translatesAutoresizingMaskIntoConstraints = false
-        blurView.layer.cornerRadius = 25
-        blurView.clipsToBounds = true
-        blurView.isHidden = true
-        
-        // Main button with modern styling
-        actionButton = UIButton(type: .custom)
-        actionButton.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Apply button color from config
-        let hexColor = config.ctaButtonColor.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-        if let buttonColor = UIColor(hexString: hexColor) {
-            actionButton.backgroundColor = buttonColor
-            print("[AR] Initial button color set: \(config.ctaButtonColor)")
-        } else {
-        actionButton.backgroundColor = UIColor(red: 248/255, green: 75/255, blue: 7/255, alpha: 1.0)
-            print("[AR] Using default button color")
-        }
-        
-        actionButton.layer.cornerRadius = 25
-        actionButton.clipsToBounds = true
-        actionButton.isHidden = true
-        
-        // Modern arrow icon
-        let arrowConfig = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
-        let arrowImage = UIImage(systemName: "arrow.right.circle.fill", withConfiguration: arrowConfig)?.withRenderingMode(.alwaysTemplate)
-        let arrowImageView = UIImageView(image: arrowImage)
-        arrowImageView.translatesAutoresizingMaskIntoConstraints = false
-        arrowImageView.contentMode = .scaleAspectFit
-        arrowImageView.tintColor = .white
-
-        // Create label with config text
-        let label = UILabel()
-        label.text = config.ctaButtonText
-        label.textColor = .white
-        label.font = UIFont.systemFont(ofSize: 17, weight: .medium)
-        label.textAlignment = .center
-        label.translatesAutoresizingMaskIntoConstraints = false
-        
-        print("[AR] Initial button text set: '\(config.ctaButtonText)'")
-
-        // Add views
-        view.addSubview(blurView)
-        view.addSubview(actionButton)
-        actionButton.addSubview(arrowImageView)
-        actionButton.addSubview(label)
+    // Set up the CTA button view
+    private func setupCTAView() {
+        ctaView = CTAButtonView(frame: .zero)
+        ctaView.translatesAutoresizingMaskIntoConstraints = false
+        ctaView.isHidden = true
+        view.addSubview(ctaView)
 
         NSLayoutConstraint.activate([
-            blurView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            blurView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            blurView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.9),
-            blurView.heightAnchor.constraint(equalToConstant: 50),
-
-            actionButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            actionButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            actionButton.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.9),
-            actionButton.heightAnchor.constraint(equalToConstant: 50),
-
-            label.centerXAnchor.constraint(equalTo: actionButton.centerXAnchor),
-            label.centerYAnchor.constraint(equalTo: actionButton.centerYAnchor),
-            
-            arrowImageView.centerYAnchor.constraint(equalTo: actionButton.centerYAnchor),
-            arrowImageView.trailingAnchor.constraint(equalTo: actionButton.trailingAnchor, constant: -16),
-            arrowImageView.widthAnchor.constraint(equalToConstant: 24),
-            arrowImageView.heightAnchor.constraint(equalToConstant: 24)
+            ctaView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            ctaView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            ctaView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.9),
+            ctaView.heightAnchor.constraint(equalToConstant: 50)
         ])
-
-        actionButton.addTarget(self, action: #selector(buttonTapped), for: .touchUpInside)
+        
+        // Initial configuration will be applied later
     }
 
-    // Action performed when the button is tapped
-    @objc func buttonTapped() {
-        if let url = URL(string: config.ctaButtonURL) {
-            UIApplication.shared.open(url, options: [:], completionHandler: nil)
-        }
-        print("[AR] Button tapped and URL opened.")
-    }
-
-    // Set up the loading indicator
-    func setupLoadingIndicator() {
-        loadingIndicator = UIActivityIndicatorView(style: .large)
-        loadingIndicator.color = .white
-        loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
-        loadingIndicator.hidesWhenStopped = true
-        view.addSubview(loadingIndicator)
+    // Set up the loading view
+    private func setupLoadingView() {
+        loadingView = LoadingView(frame: view.bounds)
+        loadingView.translatesAutoresizingMaskIntoConstraints = false
+        loadingView.isHidden = true
+        view.addSubview(loadingView)
 
         NSLayoutConstraint.activate([
-            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
-        ])
-    }
-
-    // Set up the loading label
-    func setupLoadingLabel() {
-        loadingLabel = UILabel()
-        loadingLabel.text = config.loadingText
-        loadingLabel.textColor = .white
-        loadingLabel.textAlignment = .center
-        loadingLabel.font = UIFont.systemFont(ofSize: 17, weight: .regular)
-        loadingLabel.translatesAutoresizingMaskIntoConstraints = false
-        loadingLabel.alpha = 0.0 // Start with 0 alpha
-        view.addSubview(loadingLabel)
-
-        NSLayoutConstraint.activate([
-            loadingLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            loadingLabel.topAnchor.constraint(equalTo: loadingIndicator.bottomAnchor, constant: 16)
+            loadingView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            loadingView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            loadingView.topAnchor.constraint(equalTo: view.topAnchor),
+            loadingView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
     }
 
     func showLoadingAnimation() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self, 
-                  let loadingLabel = self.loadingLabel,
-                  let loadingIndicator = self.loadingIndicator else {
-                print("[AR] ⚠️ Cannot show loading animation - UI components not initialized")
+                  let loadingView = self.loadingView else {
+                ARLog.warning("Cannot show loading animation - UI components not initialized")
                 return
             }
             
-            UIView.animate(withDuration: 0.3) {
-                loadingLabel.alpha = 1.0
-            }
-        loadingIndicator.startAnimating()
-            print("[AR] Loading animation started")
+            // Apply loading text from config
+            ConfigApplier.applyLoadingView(self.config, to: self)
+            loadingView.start(with: self.config?.loadingText ?? "Loading...")
+            ARLog.debug("Loading animation started")
         }
     }
 
     func hideLoadingAnimation() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self,
-                  let loadingLabel = self.loadingLabel,
-                  let loadingIndicator = self.loadingIndicator else {
-                print("[AR] ⚠️ Cannot hide loading animation - UI components not initialized")
+                  let loadingView = self.loadingView else {
+                ARLog.warning("Cannot hide loading animation - UI components not initialized")
                 return
             }
             
-            UIView.animate(withDuration: 0.3) {
-                loadingLabel.alpha = 0.0
-            } completion: { _ in
-        loadingIndicator.stopAnimating()
-            }
-            print("[AR] Loading animation hidden")
+            loadingView.stop()
+            ARLog.debug("Loading animation hidden")
         }
     }
 
     // Hide the overlay (used when the image is detected)
     func hideOverlay() {
-        overlayImageView.isHidden = true
-        overlayLabel.isHidden = true
-        print("[AR] Overlay hidden.")
+        overlayView.hide()
+        ARLog.debug("Overlay hidden.")
     }
 
     // Show the overlay (used when the image is lost)
     func showOverlay() {
         DispatchQueue.main.async {
-            self.overlayImageView.isHidden = false
-            self.overlayLabel.isHidden = false
-            print("[AR] Overlay shown.")
+            self.overlayView.show()
+            ARLog.debug("Overlay shown.")
         }
     }
 
@@ -1688,36 +1228,27 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     func showButtonWithDelay() {
         // Don't show button again if already shown
         guard !hasShownCTAButton else {
-            print("[AR] 🔘 CTA button already shown, not showing again")
+            ARLog.debug("🔘 CTA button already shown, not showing again")
             return
         }
         
         // Use delay from config
-        print("[AR] 🔘 Will show CTA button after \(config.ctaButtonDelay) seconds with text: '\(config.ctaButtonText)'")
+        ARLog.debug("🔘 Will show CTA button after \(config?.ctaDelayMs ?? 0) seconds with text: '\(config?.ctaButtonText ?? "No text")'")
         
-        // Ensure button text is updated with config value
+        // Update button configuration with ConfigApplier
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
-            // Update button label with config text
-            if let label = self.actionButton.subviews.compactMap({ $0 as? UILabel }).first {
-                label.text = self.config.ctaButtonText
-                print("[AR] 📝 Updated button text to: '\(self.config.ctaButtonText)'")
-            }
-            
-            // Update button color
-            let hexColor = self.config.ctaButtonColor.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-            if let buttonColor = UIColor(hexString: hexColor) {
-                self.actionButton.backgroundColor = buttonColor
-                print("[AR] 🎨 Updated button color to: \(self.config.ctaButtonColor)")
-            }
+            // Use ConfigApplier to apply just the button configuration
+            ConfigApplier.applyCTAButton(self.config, to: self)
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + config.ctaButtonDelay) { [weak self] in
+        // Show button after delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + TimeInterval((config?.ctaDelayMs ?? 0)/1000)) { [weak self] in
             guard let self = self else { return }
             self.hasShownCTAButton = true
-            self.actionButton.isHidden = false
-            print("[AR] 👆 Button displayed after delay: \(self.config.ctaButtonDelay) seconds.")
+            self.ctaView.show()
+            ARLog.debug("👆 Button displayed after delay: \(self.config?.ctaDelayMs ?? 0) seconds.")
         }
     }
 
@@ -1745,11 +1276,11 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             if let playerItem = object as? AVPlayerItem {
                 switch playerItem.status {
                 case .readyToPlay:
-                    print("[AR] Video is ready to play")
+                    ARLog.debug("Video is ready to play")
                 case .failed:
-                    print("[AR] Video failed to load: \(playerItem.error?.localizedDescription ?? "Unknown error")")
+                    ARLog.error("Video failed to load: \(playerItem.error?.localizedDescription ?? "Unknown error")")
                 case .unknown:
-                    print("[AR] Video status is unknown")
+                    ARLog.debug("Video status is unknown")
                 @unknown default:
                     break
                 }
@@ -1770,23 +1301,23 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
     // Process URL from QR code or App Clip launch
     func processLaunchURL(_ url: URL) {
-        print("[AR] 🌐 Processing launch URL: \(url.absoluteString)")
+        ARLog.debug("🌐 Processing launch URL: \(url.absoluteString)")
         
         // Debug: Log URL components
-        print("[AR] 🔍 URL COMPONENTS:")
-        print("[AR] 🔍 scheme: \(url.scheme ?? "nil")")
-        print("[AR] 🔍 host: \(url.host ?? "nil")")
-        print("[AR] 🔍 path: \(url.path)")
-        print("[AR] 🔍 pathComponents: \(url.pathComponents)")
+        ARLog.debug("🔍 URL COMPONENTS:")
+        ARLog.debug("🔍 scheme: \(url.scheme ?? "nil")")
+        ARLog.debug("🔍 host: \(url.host ?? "nil")")
+        ARLog.debug("🔍 path: \(url.path)")
+        ARLog.debug("🔍 pathComponents: \(url.pathComponents)")
         
         // Extract folderID using URL extension
         if let folderID = url.extractFolderID() {
-            print("[AR] 🎯 FINAL FOLDER ID: \(folderID)")
+            ARLog.debug("🎯 FINAL FOLDER ID: \(folderID)")
             
             // Compare with our initial folderID
             if folderID != initialFolderID {
-                print("[AR] ⚠️ URL folderID (\(folderID)) doesn't match initial folderID (\(initialFolderID))")
-                print("[AR] 🔄 Will reload with correct folderID: \(folderID)")
+                ARLog.debug("⚠️ URL folderID (\(folderID)) doesn't match initial folderID (\(initialFolderID))")
+                ARLog.debug("🔄 Will reload with correct folderID: \(folderID)")
                 
                 // Force a config reload with the correct folderID
                 NotificationCenter.default.post(
@@ -1799,137 +1330,172 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             
             // Store folderID for later use
             UserDefaults.standard.set(folderID, forKey: "folderID")
-            print("[AR] 💾 Saved folderID to UserDefaults: \(folderID)")
+            ARLog.debug("💾 Saved folderID to UserDefaults: \(folderID)")
             
             // Cancel any existing asset loading
             cancelAssetLoading()
             
             // Show loading animation only if UI is initialized
-            if loadingLabel != nil && loadingIndicator != nil {
+            if loadingView != nil {
                 showLoadingAnimation()
             } else {
-                print("[AR] ⚠️ Cannot show loading animation - UI not initialized yet")
+                ARLog.warning("Cannot show loading animation - UI not initialized yet")
             }
             
             // Force clear caches
             URLCache.shared.removeAllCachedResponses()
             UserDefaults.standard.removeObject(forKey: "config_cache_timestamp")
             UserDefaults.standard.removeObject(forKey: "cached_config")
-            print("[AR] 🧹 Cleared all caches")
+            ARLog.debug("�� Cleared all caches")
             
             // Explicitly log the expected config URL
-            let configURL = "https://adagxr.com/card/\(folderID)/sample_config.json"
-            print("[AR] 🔍 Will load configuration from \(configURL)")
+            let configURL = "\(Constants.baseCardURL)/\(folderID)/\(Constants.configFilename)"
+            ARLog.debug("🔍 Will load configuration from \(configURL)")
             
             // Add cache-busting timestamp to URL
             let timestamp = Int(Date().timeIntervalSince1970)
-            print("[AR] ⏰ Added cache-busting timestamp: \(timestamp)")
+            ARLog.debug("⏰ Added cache-busting timestamp: \(timestamp)")
             
             // Load new configuration directly with ConfigManager
-            ConfigManager.shared.loadConfig(folderID: folderID, configID: "sample_config") { [weak self] newConfig in
-                print("[AR] ✅ Received configuration:")
-                print("[AR] - targetImageURL: \(newConfig.targetImageURL)")
-                print("[AR] - videoURL: \(newConfig.videoURL)")
-                print("[AR] - ctaButtonText: '\(newConfig.ctaButtonText)'")
+            ConfigManager.shared.loadConfiguration(folderID: folderID) { [weak self] result in
+                guard let self = self else { return }
                 
-                if newConfig.videoURL.contains("/ar/") && !newConfig.videoURL.contains("/ar1/") && folderID == "ar1" {
-                    print("[AR] ⚠️ WARNING: Config contains default 'ar' URLs instead of 'ar1'!")
+                switch result {
+                case .success(let config):
+                    ARLog.debug("✅ Received configuration:")
+                    ARLog.debug("- targetImageUrl: \(config.targetImageUrl)")
+                    ARLog.debug("- videoURL: \(config.videoURL)")
+                    ARLog.debug("- ctaButtonText: '\(config.ctaButtonText ?? "nil")'")
+                
+                    if config.videoURL.contains("/ar/") && !config.videoURL.contains("/\(folderID)/") {
+                        ARLog.warning("Config contains generic 'ar' URLs instead of '\(folderID)'!")
                 }
                 
                 DispatchQueue.main.async {
-                    guard let self = self else { return }
-                    self.config = newConfig
-                    self.logConfig()
-                    self.applyConfig(newConfig)
+                        self.config = config
+                        self.logConfig()
+                        ConfigApplier.apply(config, to: self)
+                        
+                        // Start asset loading if needed
+                        if !self.areAssetsLoaded {
+                            self.startAssetLoading()
+                        }
+                    }
+                    
+                case .failure(let error):
+                    ARLog.error("Failed to load configuration: \(error.localizedDescription)")
+                    
+                    DispatchQueue.main.async {
+                        QRScannerHelper.openQRScanner(from: self)
+                    }
                 }
             }
         } else {
-            print("[AR] ❌ Could not extract folderID from URL: \(url.absoluteString)")
+            ARLog.error("Could not extract folderID from URL: \(url.absoluteString)")
+            DispatchQueue.main.async {
+                QRScannerHelper.openQRScanner(from: self)
         }
     }
+    }
     
-    // Apply configuration to the AR experience
-    func applyConfig(_ newConfig: ARConfig) {
-        print("[AR] Applying new configuration")
+    private func logConfig() {
+        ARLog.debug("📋 CURRENT CONFIG VALUES:")
+        ARLog.debug("- targetImageUrl: \(config?.targetImageUrl.absoluteString ?? "nil")")
+        ARLog.debug("- videoURL: \(config?.videoURL ?? "nil")")
+        ARLog.debug("- videoWithTransparency: \(config?.videoWithTransparency == true)")
+        if config?.videoWithTransparency == true {
+            ARLog.debug("- videoRgbUrl: \(config?.videoRgbUrl?.absoluteString ?? "nil")")
+            ARLog.debug("- videoAlphaUrl: \(config?.videoAlphaUrl?.absoluteString ?? "nil")")
+        }
+        ARLog.debug("- videoPlaneWidth: \(config?.videoPlaneWidth ?? 0.0)")
+        ARLog.debug("- videoPlaneHeight: \(config?.videoPlaneHeight ?? 0.0)")
+        ARLog.debug("- actualTargetImageWidthMeters: \(config?.actualTargetImageWidthMeters ?? 0.0)")
+        ARLog.debug("- ctaButtonText: '\(config?.ctaButtonText ?? "No text")'")
+        ARLog.debug("- ctaButtonColorHex: \(config?.ctaButtonColorHex ?? "No color")")
+        ARLog.debug("- ctaButtonURL: \(config?.ctaButtonURL?.absoluteString ?? "No URL")")
+        ARLog.debug("- ctaDelayMs: \(config?.ctaDelayMs ?? 0)")
+        ARLog.debug("- overlayText: '\(config?.overlayText ?? "No overlay text")'")
+        ARLog.debug("- loadingText: '\(config?.loadingText ?? "No loading text")'")
+    }
+
+    // MARK: - Asset Detection Notification
+    private func processDetectedImage(anchor: ARImageAnchor, node: SCNNode) {
+        ARLog.debug("🎯 Image detected and matched! Starting video...")
         
-        // Update the current config
-        config = newConfig
+        isImageTracked = true
         
-        // Update UI elements
+        // Hide the overlay now that we've detected the image
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.overlayView.hide()
+            }
+            
+        // Create a plane to display the video on
+        createVideoPlane(for: node, with: anchor)
+        
+        // Play video based on the mode
+        if isUsingTransparentVideo {
+            ARLog.debug("Playing transparent video using Metal shader")
+            transparentVideoPlayer?.play()
+        } else if let player = videoPlayer {
+            ARLog.debug("Playing standard video with AVPlayer")
+            player.seek(to: .zero)
+            player.play()
+            }
+            
+        // Show button after delay
+        showButtonWithDelay()
+    }
+
+    private func handleSuccessfulAssetLoading() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
-            // Update loading text
-            if let loadingLabel = self.loadingLabel {
-                loadingLabel.text = newConfig.loadingText
-                print("[AR] Updated loading text: \(newConfig.loadingText)")
-            }
+            self.loadingTimer?.invalidate()
+            self.retryCount = 0
+            self.hideLoadingAnimation()
+            self.noInternetView.hide()
+            self.areAssetsLoaded = true
             
-            // Update overlay text
-            if let overlayLabel = self.overlayLabel {
-                overlayLabel.text = newConfig.overlayText
-                print("[AR] Updated overlay text: \(newConfig.overlayText)")
-            }
-            
-            // Update button text and color
-            if let button = self.actionButton {
-                // Update button text
-                if let label = button.subviews.compactMap({ $0 as? UILabel }).first {
-                    label.text = newConfig.ctaButtonText
-                    print("[AR] Updated button text: \(newConfig.ctaButtonText)")
-                }
+            if let referenceImage = self.referenceImage {
+                let configuration = ARImageTrackingConfiguration()
+                configuration.isAutoFocusEnabled = true
+                configuration.trackingImages = [referenceImage]
+                configuration.maximumNumberOfTrackedImages = 1
                 
-                // Update button color
-                let hexColor = newConfig.ctaButtonColor.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-                if let buttonColor = UIColor(hexString: hexColor) {
-                    button.backgroundColor = buttonColor
-                    print("[AR] Updated button color: \(newConfig.ctaButtonColor)")
-                }
-            }
-            
-            // Load overlay image from new config URL
-            if let overlayImageView = self.overlayImageView, let imageURL = URL(string: newConfig.targetImageURL) {
-                print("[AR] Loading overlay image from: \(newConfig.targetImageURL)")
-                let imageView = overlayImageView // Create a local reference to avoid capturing self
-                URLSession.shared.dataTask(with: imageURL) { data, response, error in
-                    if let data = data, let image = UIImage(data: data) {
-                        DispatchQueue.main.async {
-                            imageView.image = image
-                            print("[AR] Successfully loaded overlay image")
-                        }
-                    } else if let error = error {
-                        print("[AR] Failed to load overlay image: \(error.localizedDescription)")
-                    }
-                }.resume()
-            }
-            
-            // Start or restart asset loading only if assets aren't already loaded
-            if !self.areAssetsLoaded {
-                self.startAssetLoading()
+                self.sceneView.session.run(configuration, options: [.removeExistingAnchors])
+                self.overlayView.show()
             }
         }
     }
 
-    private func logConfig() {
-        print("[AR] 📋 CURRENT CONFIG VALUES:")
-        print("[AR] - targetImageURL: \(config.targetImageURL)")
-        print("[AR] - videoURL: \(config.videoURL)")
-        print("[AR] - hasTransparency: \(config.hasTransparency)")
-        if config.hasTransparency {
-            print("[AR] - videoRGBURL: \(config.videoRGBURL)")
-            print("[AR] - videoAlphaURL: \(config.videoAlphaURL)")
-        }
-        print("[AR] - videoPlaneWidth: \(config.videoPlaneWidth)")
-        print("[AR] - videoPlaneHeight: \(config.videoPlaneHeight)")
-        print("[AR] - addedWidth: \(config.addedWidth ?? 1.0)")
-        print("[AR] - addedHeight: \(config.addedHeight ?? 1.0)")
-        print("[AR] - ctaButtonText: '\(config.ctaButtonText)'")
-        print("[AR] - ctaButtonColor: \(config.ctaButtonColor)")
-        print("[AR] - ctaButtonURL: \(config.ctaButtonURL)")
-        print("[AR] - ctaButtonDelay: \(config.ctaButtonDelay)")
-        print("[AR] - overlayText: '\(config.overlayText)'")
-        print("[AR] - loadingText: '\(config.loadingText)'")
+    private func showNetworkErrorView() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            self.hideLoadingAnimation()
+            self.overlayView.hide()
+            self.noInternetView.show()
+            
+            // Subscribe to network status changes
+            NetworkMonitor.shared.onStatusChange = { [weak self] isConnected in
+                guard let self = self else { return }
+                
+                if isConnected {
+                    // Network is back online
+                    if let url = self.launchURL, let _ = url.extractFolderID() {
+                        // Valid URL: retry AR
+                        self.hideNetworkError()
+                        self.processLaunchURL(url)
+                    } else {
+                        // Invalid URL: show QR scanner
+                        QRScannerHelper.openQRScanner(from: self)
     }
 }
+            }
+        }
+    }
+}
+
 
 

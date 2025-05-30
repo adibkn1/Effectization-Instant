@@ -5,7 +5,7 @@ extension URL {
   func extractFolderID() -> String? {
     // 1. Try path-based extraction
     let parts = self.pathComponents.filter { !$0.isEmpty }
-    if let idx = parts.firstIndex(of: "card"), idx + 1 < parts.count {
+    if let idx = parts.firstIndex(of: Constants.cardPathComponent), idx + 1 < parts.count {
       return parts[idx + 1]
     }
 
@@ -27,7 +27,7 @@ extension URL {
     // Fallback to manual string parsing
     let components = urlString.components(separatedBy: "/")
     for (index, component) in components.enumerated() {
-      if component == "card" && index + 1 < components.count {
+      if component == Constants.cardPathComponent && index + 1 < components.count {
         return components[index + 1]
       }
     }

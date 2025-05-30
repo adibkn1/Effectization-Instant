@@ -1,9 +1,9 @@
-"/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ARContentView.swift":
-  objc-header: "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARClip1-Swift.h"
-  swiftsourceinfo: "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARClip1.swiftsourceinfo"
-  const-values: "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARClip1-master.swiftconstvalues"
-  diagnostics: "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARClip1-master.dia"
+"/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/Effectization-Instant/ViewControllers/QRViewController.swift":
   abi-baseline-json: "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARClip1.abi.json"
-  swiftdoc: "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARClip1.swiftdoc"
-  dependencies: "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARClip1-master.d"
   swiftmodule: "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARClip1.swiftmodule"
+  dependencies: "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARClip1-master.d"
+  diagnostics: "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARClip1-master.dia"
+  swiftsourceinfo: "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARClip1.swiftsourceinfo"
+  swiftdoc: "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARClip1.swiftdoc"
+  const-values: "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARClip1-master.swiftconstvalues"
+  objc-header: "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Release-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARClip1-Swift.h"
