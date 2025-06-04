@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		B21238B22CAC18C40087BCBE /* ARClip1.app in Embed App Clips */ = {isa = PBXBuildFile; fileRef = B212388D2CAC18C40087BCBE /* ARClip1.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B24F94332DEF758B0064B617 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = B24F94322DEF758B0064B617 /* PostHog */; };
+		B2B8101E2DF03E8D001B29AA /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = B2B8101D2DF03E8D001B29AA /* PostHog */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,6 +77,7 @@
 				Network/NetworkMonitor.swift,
 				TransparentVideoPlayer.swift,
 				UIColorExtension.swift,
+				Utils/AnalyticsManager.swift,
 				Utils/ARLogger.swift,
 				Utils/ConfigApplier.swift,
 				Utils/Constants.swift,
@@ -115,6 +118,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B2B8101E2DF03E8D001B29AA /* PostHog in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -122,6 +126,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B24F94332DEF758B0064B617 /* PostHog in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -168,6 +173,7 @@
 			);
 			name = "Effectization-Instant";
 			packageProductDependencies = (
+				B2B8101D2DF03E8D001B29AA /* PostHog */,
 			);
 			productName = "Effectization-Instant";
 			productReference = B212385A2CAC18AB0087BCBE /* Effectization-Instant.app */;
@@ -190,6 +196,7 @@
 			);
 			name = ARClip1;
 			packageProductDependencies = (
+				B24F94322DEF758B0064B617 /* PostHog */,
 			);
 			productName = ARClip1;
 			productReference = B212388D2CAC18C40087BCBE /* ARClip1.app */;
@@ -222,6 +229,9 @@
 			);
 			mainGroup = B21238512CAC18AB0087BCBE;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				B24F94312DEF758B0064B617 /* XCRemoteSwiftPackageReference "posthog-ios" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B212385B2CAC18AB0087BCBE /* Products */;
 			projectDirPath = "";
@@ -424,7 +434,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.51;
+				MARKETING_VERSION = 1.2.60;
 				PRODUCT_BUNDLE_IDENTIFIER = "Effectization-Studio.Effectization-Instant";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -464,7 +474,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.51;
+				MARKETING_VERSION = 1.2.60;
 				PRODUCT_BUNDLE_IDENTIFIER = "Effectization-Studio.Effectization-Instant";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -504,7 +514,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.51;
+				MARKETING_VERSION = 1.2.60;
 				PRODUCT_BUNDLE_IDENTIFIER = "Effectization-Studio.Effectization-Instant.Clip";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -544,7 +554,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.51;
+				MARKETING_VERSION = 1.2.60;
 				PRODUCT_BUNDLE_IDENTIFIER = "Effectization-Studio.Effectization-Instant.Clip";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -588,6 +598,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		B24F94312DEF758B0064B617 /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.26.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B24F94322DEF758B0064B617 /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B24F94312DEF758B0064B617 /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
+		};
+		B2B8101D2DF03E8D001B29AA /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B24F94312DEF758B0064B617 /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B21238522CAC18AB0087BCBE /* Project object */;
 }

@@ -10,6 +10,12 @@ struct ARClip1App: App {
     @State private var showNoInternet: Bool = false
     @State private var pendingURL: URL?
     
+    init() {
+        // Initialize analytics when the app launches
+        // We'll initialize without folderID first, then update when URL is processed
+        AnalyticsManager.shared.initialize()
+    }
+    
     var body: some Scene {
         WindowGroup {
             ZStack {
@@ -41,13 +47,13 @@ struct ARClip1App: App {
             // 1️⃣ Handle "Open URL" events at runtime
             .onOpenURL { url in
                 print("[App] Received URL: \(url.absoluteString)")
-                handleIncomingURL(url)
+                handleIncomingURL(url, invokeSource: "url_scheme")
             }
             // 2️⃣ Handle initial App Clip invocation via universal link
             .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
                 if let url = activity.webpageURL {
                     print("[App] Received URL from user activity: \(url.absoluteString)")
-                    handleIncomingURL(url)
+                    handleIncomingURL(url, invokeSource: "universal_link")
                 }
             }
             // 3️⃣ As a fallback, when the scene becomes active, pick up the XCAppClipURL env var
@@ -56,10 +62,13 @@ struct ARClip1App: App {
                    let env = ProcessInfo.processInfo.environment["_XCAppClipURL"],
                    let url = URL(string: env) {
                     print("[App] Found environment URL: \(env)")
-                    handleIncomingURL(url)
+                    handleIncomingURL(url, invokeSource: "environment_var")
                 } else if newPhase == .active, launchURL == nil, !showNoInternet, !showQRScanner {
                     // If we have no URL and aren't showing any screens yet, check status
                     checkStatus()
+                } else if newPhase == .background {
+                    // Track session end when app goes to background
+                    AnalyticsManager.shared.trackSessionEnd()
                 }
             }
         }
@@ -100,8 +109,16 @@ struct ARClip1App: App {
         }
     }
     
-    private func handleIncomingURL(_ url: URL) {
-        if url.extractFolderID() != nil {
+    private func handleIncomingURL(_ url: URL, invokeSource: String) {
+        if let folderID = url.extractFolderID() {
+            // Update analytics with the folderID and invoke source
+            AnalyticsManager.shared.setCurrentExperience(folderID: folderID)
+            AnalyticsManager.shared.trackEvent(name: "App Clip Invoked", properties: [
+                "folder_id": folderID,
+                "invoke_source": invokeSource,
+                "url": url.absoluteString
+            ])
+            
             // Valid URL with folderID
             if NetworkMonitor.shared.isConnected {
                 // Network up + valid link -> AR
@@ -126,6 +143,12 @@ struct ARClip1App: App {
                 }
             }
         } else {
+            // Track invalid URL in analytics
+            AnalyticsManager.shared.trackEvent(name: "Invalid URL Received", properties: [
+                "url": url.absoluteString,
+                "invoke_source": invokeSource
+            ])
+            
             // Invalid URL without folderID
             if NetworkMonitor.shared.isConnected {
                 // Network up + invalid link -> QR scanner
@@ -146,9 +169,9 @@ struct ARClip1App: App {
                     } else {
                         // Network came back online during delay
                         showQRScanner = true
+                    }
                 }
-        }
-    }
+            }
         }
     }
     

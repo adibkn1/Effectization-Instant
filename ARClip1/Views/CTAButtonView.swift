@@ -4,6 +4,7 @@ import UIKit
 class CTAButtonView: UIView {
     private let button = UIButton(type: .custom)
     private var tapAction: (() -> Void)?
+    private var buttonText: String = ""
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -39,6 +40,9 @@ class CTAButtonView: UIView {
     
     /// Configure the button with text, color, and tap action
     func configure(text: String, colorHex: String, action: @escaping () -> Void) {
+        // Store button text for analytics
+        self.buttonText = text
+        
         // Update button text
         button.setTitle(text, for: .normal)
         button.setTitleColor(.white, for: .normal)
@@ -58,6 +62,10 @@ class CTAButtonView: UIView {
     }
     
     @objc private func buttonTapped() {
+        // Track button tap event with analytics
+        AnalyticsManager.shared.trackButtonTap(buttonName: buttonText, screenName: "AR Experience")
+        
+        // Call the action
         tapAction?()
     }
     

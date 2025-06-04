@@ -46,6 +46,9 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     private var transparentVideoPlayer: TransparentVideoPlayer? // For transparent video
     private var isUsingTransparentVideo = false // Flag to track transparent video mode
     
+    // Analytics tracking
+    private var experienceStartTime = Date()
+    
     // Replace loadingIndicator and loadingLabel with loadingView
     var loadingView: LoadingView!
     
@@ -100,6 +103,9 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        // Track screen view
+        AnalyticsManager.shared.trackScreenView(screenName: "AR Experience", screenClass: "ARViewController")
         
         // Only proceed if launchURL was set
         guard launchURL != nil else {
@@ -183,8 +189,8 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 if !self.areAssetsLoaded {
                     // Only show error if we're still loading
                     self.showNetworkErrorView()
+                }
             }
-        }
         }
     }
     
@@ -206,6 +212,14 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 if config.videoURL.contains("/ar/") && !config.videoURL.contains("/ar1/") {
                     ARLog.warning("Using default 'ar' folder instead of 'ar1' folder!")
                 }
+                
+                // Track config loaded event
+                AnalyticsManager.shared.trackEvent(name: "AR Config Loaded", properties: [
+                    "folder_id": self.initialFolderID,
+                    "is_new_config": isNewConfig,
+                    "has_video_url": !config.videoURL.isEmpty,
+                    "has_image_url": config.targetImageUrl.absoluteString.isEmpty == false
+                ])
                 
                 // Store the new config
                 self.config = config
@@ -398,8 +412,11 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         sceneView.session.delegate = self
         sceneView.scene = SCNScene()
         sceneView.autoenablesDefaultLighting = true
-        sceneView.backgroundColor = .clear // For alpha support
+        sceneView.backgroundColor = .black // Change from .clear to .black for better visibility
         view.addSubview(sceneView)
+        
+        // Make sure sceneView is at the back of the view hierarchy
+        view.sendSubviewToBack(sceneView)
         
         // Disable automatic configuration
         sceneView.automaticallyUpdatesLighting = false
@@ -462,6 +479,21 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             self?.showLoadingAnimation()
         }
         
+        // Track asset download start
+        var assetTypes = ["reference_image"]
+        if config.videoWithTransparency {
+            assetTypes.append(contentsOf: ["rgb_video", "alpha_video"])
+        } else {
+            assetTypes.append("standard_video")
+        }
+        
+        AnalyticsManager.shared.trackAssetDownloadStart(
+            folderID: initialFolderID,
+            assetTypes: assetTypes
+        )
+        
+        let downloadStartTime = Date()
+        
         // Create an ARAssetLoader to handle asset loading
         guard let config = self.config else {
             ARLog.error("Cannot create ARAssetLoader: config is nil")
@@ -506,17 +538,48 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         group.notify(queue: .main) { [weak self] in
             guard let self = self else { return }
             
+            // Calculate download duration
+            let downloadDuration = Date().timeIntervalSince(downloadStartTime)
+            
             if let error = loadError {
                 ARLog.error("Asset loading failed: \(error.localizedDescription)")
-                self.handleFailedAssetLoading()
-            return
-        }
-        
-            guard let referenceImage = loadedImage, let videoResult = loadedVideo else {
-                ARLog.error("Asset loading incomplete")
+                
+                // Track failed download
+                AnalyticsManager.shared.trackAssetDownloadComplete(
+                    folderID: self.initialFolderID,
+                    assetTypes: assetTypes,
+                    duration: downloadDuration,
+                    success: false,
+                    errorMessage: error.localizedDescription
+                )
+                
                 self.handleFailedAssetLoading()
                 return
             }
+        
+            guard let referenceImage = loadedImage, let videoResult = loadedVideo else {
+                ARLog.error("Asset loading incomplete")
+                
+                // Track failed download
+                AnalyticsManager.shared.trackAssetDownloadComplete(
+                    folderID: self.initialFolderID,
+                    assetTypes: assetTypes,
+                    duration: downloadDuration,
+                    success: false,
+                    errorMessage: "Incomplete asset loading"
+                )
+                
+                self.handleFailedAssetLoading()
+                return
+            }
+            
+            // Track successful download
+            AnalyticsManager.shared.trackAssetDownloadComplete(
+                folderID: self.initialFolderID,
+                assetTypes: assetTypes,
+                duration: downloadDuration,
+                success: true
+            )
             
             // Store the reference image
             self.referenceImage = referenceImage
@@ -535,15 +598,9 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             // Mark video as ready
             self.isVideoReady = true
             
-            // Note: we no longer override the video plane dimensions with the reference image size
-            // The dimensions will be calculated at render time based on:
-            // - config.actualTargetImageWidthMeters (base size)
-            // - config.videoPlaneWidth (multiplier)
-            // - config.videoPlaneHeight (multiplier)
-            
             // Process loaded assets
             self.handleAssetsLoaded()
-                }
+        }
     }
     
     private func setupAudioSession() {
@@ -846,68 +903,101 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         for anchor in anchors {
             guard let imageAnchor = anchor as? ARImageAnchor else { continue }
             
-                if !imageAnchor.isTracked && self.isImageTracked {
-                    // Image tracking is lost
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
+            if imageAnchor.referenceImage.name == "targetImage" {
+                let isTracking = imageAnchor.isTracked
+                
+                // Only track state changes instead of continuous updates
+                let trackingStateChanged = isTracking != self.isImageTracked
+                
+                if trackingStateChanged {
+                    // Only log and track analytics when tracking state actually changes
+                    AnalyticsManager.shared.trackEvent(name: "AR Image Tracking Update", properties: [
+                        "folder_id": initialFolderID,
+                        "is_tracking": isTracking,
+                        "time_in_experience_seconds": Date().timeIntervalSince(experienceStartTime)
+                    ])
                     
-                    ARLog.debug("Image tracking lost. Showing overlay and pausing video.")
-                    
-                    // Only perform actions if state has actually changed
-                    if self.isImageTracked {
-                        self.isImageTracked = false
-                        self.showOverlay()
-                        
-                            // Pause video playback
-                            if isUsingTransparentVideo {
-                                self.transparentVideoPlayer?.pause()
-                                ARLog.debug("Transparent video paused")
-                            } else if let player = self.videoPlayer {
-                            player.pause()
-                            ARLog.debug("Video paused")
-                        }
-                        
-                            // Do NOT hide the CTA button once it has been shown
-                            // The button should remain visible even when tracking is lost
-                    }
-                    }
-                } else if imageAnchor.isTracked && !self.isImageTracked {
-                // Image tracking is gained or regained
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
-                    
-                    ARLog.debug("Image detected/re-detected. Hiding overlay and playing video.")
-                    
-                    // Only perform actions if state has actually changed
-                    if !self.isImageTracked {
-                        self.isImageTracked = true
+                    if !imageAnchor.isTracked && self.isImageTracked {
+                        // Image tracking is lost
+                        DispatchQueue.main.async { [weak self] in
+                            guard let self = self else { return }
                             
-                            // Add a small delay before hiding overlay to smooth transition
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                // Hide overlay
-                        self.hideOverlay()
-                        
-                                // Resume video playback
-                                if self.isUsingTransparentVideo {
-                                    self.transparentVideoPlayer?.play()
-                                    ARLog.debug("Transparent video playback started/resumed")
+                            ARLog.debug("Image tracking lost. Showing overlay and pausing video.")
+                            
+                            // Track tracking lost event
+                            AnalyticsManager.shared.pauseTrackingSession()
+                            AnalyticsManager.shared.pauseVideoPlayback()
+                            
+                            // Only perform actions if state has actually changed
+                            if self.isImageTracked {
+                                self.isImageTracked = false
+                                self.showOverlay()
+                                
+                                // Pause video playback
+                                if isUsingTransparentVideo {
+                                    self.transparentVideoPlayer?.pause()
+                                    ARLog.debug("Transparent video paused")
                                 } else if let player = self.videoPlayer {
-                            // Ensure playback starts from beginning if it's a new detection
-                            if player.currentTime() == .zero {
-                                player.seek(to: .zero)
+                                    player.pause()
+                                    ARLog.debug("Video paused")
+                                }
+                                
+                                // Do NOT hide the CTA button once it has been shown
+                                // The button should remain visible even when tracking is lost
                             }
-                            player.play()
-                            ARLog.debug("Video playback started/resumed")
-                        } else {
-                            ARLog.warning("Cannot play video - player not initialized")
                         }
-                        
-                                // Show the CTA button with a delay if it hasn't been shown yet
-                                if !self.hasShownCTAButton {
-                        ARLog.debug("🔄 Showing CTA button after detection")
-                        self.showButtonWithDelay()
+                    } else if imageAnchor.isTracked && !self.isImageTracked {
+                        // Image tracking is gained or regained
+                        DispatchQueue.main.async { [weak self] in
+                            guard let self = self else { return }
+                            
+                            ARLog.debug("Image detected/re-detected. Hiding overlay and playing video.")
+                            
+                            // Check if this is the first detection
+                            let isFirstDetection = !self.hasShownCTAButton && !self.isImageTracked
+                            
+                            // Track tracking gained event
+                            AnalyticsManager.shared.startTrackingSession()
+                            
+                            if isFirstDetection {
+                                // Track first image detection
+                                AnalyticsManager.shared.trackFirstImageDetection(folderID: self.initialFolderID)
+                            }
+                            
+                            // Only perform actions if state has actually changed
+                            if !self.isImageTracked {
+                                self.isImageTracked = true
+                                
+                                // Add a small delay before hiding overlay to smooth transition
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    // Hide overlay
+                                    self.hideOverlay()
+                                    
+                                    // Resume video playback
+                                    if self.isUsingTransparentVideo {
+                                        AnalyticsManager.shared.startVideoPlayback()
+                                        self.transparentVideoPlayer?.play()
+                                        ARLog.debug("Transparent video playback started/resumed")
+                                    } else if let player = self.videoPlayer {
+                                        // Ensure playback starts from beginning if it's a new detection
+                                        if player.currentTime() == .zero {
+                                            player.seek(to: .zero)
+                                        }
+                                        AnalyticsManager.shared.startVideoPlayback()
+                                        player.play()
+                                        ARLog.debug("Video playback started/resumed")
+                                    } else {
+                                        ARLog.warning("Cannot play video - player not initialized")
+                                    }
+                                    
+                                    // Show the CTA button with a delay if it hasn't been shown yet
+                                    if !self.hasShownCTAButton {
+                                        ARLog.debug("🔄 Showing CTA button after detection")
+                                        self.showButtonWithDelay()
+                                    }
                                 }
                             }
+                        }
                     }
                 }
             }
@@ -917,7 +1007,14 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     // Optional method to handle anchor removal
     func session(_ session: ARSession, didRemove anchors: [ARAnchor]) {
         for anchor in anchors {
-            if anchor is ARImageAnchor {
+            guard let imageAnchor = anchor as? ARImageAnchor else { continue }
+            
+            if imageAnchor.referenceImage.name == "targetImage" {
+                // Track anchor removal with analytics
+                AnalyticsManager.shared.trackEvent(name: "AR Image Anchor Removed", properties: [
+                    "folder_id": initialFolderID
+                ])
+                
                 DispatchQueue.main.async {
                     ARLog.debug("Image anchor removed. Image is no longer being tracked.")
                     if self.isImageTracked {
@@ -1248,6 +1345,12 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             guard let self = self else { return }
             self.hasShownCTAButton = true
             self.ctaView.show()
+            
+            // Track CTA button displayed
+            AnalyticsManager.shared.trackCTAButtonDisplayed(
+                buttonText: self.config?.ctaButtonText ?? "Unknown"
+            )
+            
             ARLog.debug("👆 Button displayed after delay: \(self.config?.ctaDelayMs ?? 0) seconds.")
         }
     }
@@ -1494,6 +1597,42 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 }
             }
         }
+    }
+
+    // When video is loaded, track this event
+    private func videoLoaded() {
+        ARLog.debug("Video loaded and ready to play")
+        
+        // Track video loaded with analytics
+        AnalyticsManager.shared.trackEvent(name: "AR Video Loaded", properties: [
+            "folder_id": initialFolderID,
+            "video_url": config?.videoURL ?? "none",
+            "is_transparent": isUsingTransparentVideo,
+            "video_format": isUsingTransparentVideo ? "transparent_alpha" : "standard_hls"
+        ])
+        
+        isVideoReady = true
+        
+        // If already tracking an image, start playback immediately
+        if isImageTracked {
+            if isUsingTransparentVideo {
+                transparentVideoPlayer?.play()
+            } else {
+                videoPlayer?.play()
+            }
+        }
+    }
+    
+    // Add a tracking method for when a user taps the CTA button
+    @objc private func ctaButtonTapped(url: URL) {
+        // Track CTA button tap with enhanced analytics
+        AnalyticsManager.shared.trackCTAButtonTapped(
+            buttonText: config?.ctaButtonText ?? "unknown",
+            url: url.absoluteString
+        )
+        
+        // Open the URL
+        UIApplication.shared.open(url, options: [:], completionHandler: nil)
     }
 }
 
