@@ -120,6 +120,43 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
         super.viewDidLoad()
         self.hidesBottomBarWhenPushed = false
         addScannerOverlay()
+        
+        // Register for tab bar selection notifications
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleTabSelection),
+            name: NSNotification.Name("TabSelectionChanged"),
+            object: nil
+        )
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    // Handle tab bar selection changes
+    @objc func handleTabSelection(_ notification: Notification) {
+        if let selectedIndex = notification.userInfo?["selectedIndex"] as? Int {
+            let qrTabIndex = 1  // QR scanner is at index 1
+            
+            if selectedIndex == qrTabIndex {
+                // QR tab selected, start camera if not running
+                if captureSession?.isRunning == false {
+                    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                        self?.captureSession?.startRunning()
+                        print("[QR] Camera started due to QR tab selection")
+                    }
+                }
+            } else {
+                // Different tab selected, stop camera if running
+                if captureSession?.isRunning == true {
+                    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                        self?.captureSession?.stopRunning()
+                        print("[QR] Camera stopped due to tab change")
+                    }
+                }
+            }
+        }
     }
     
     override func viewWillLayoutSubviews() {
@@ -133,9 +170,22 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
         // Remove fade-in animation
         previewLayer?.opacity = 1.0
         
-        if captureSession?.isRunning == false {
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                self?.captureSession?.startRunning()
+        // Check if this tab is selected before starting the camera
+        if let tabBarController = self.tabBarController {
+            let qrTabIndex = 1  // QR scanner is at index 1
+            if tabBarController.selectedIndex == qrTabIndex {
+                if captureSession?.isRunning == false {
+                    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                        self?.captureSession?.startRunning()
+                    }
+                }
+            }
+        } else {
+            // Not in a tab bar context, start normally
+            if captureSession?.isRunning == false {
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    self?.captureSession?.startRunning()
+                }
             }
         }
     }

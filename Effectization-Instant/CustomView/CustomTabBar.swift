@@ -62,4 +62,36 @@ class CustomTabBar: UITabBar {
         itemPositioning = .centered
         itemSpacing = 80 // Increased spacing between items
     }
+    
+    // Handle tab item taps
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard let result = super.hitTest(point, with: event) else { return nil }
+        
+        // If we tapped on the tab bar
+        if result == self {
+            // Find the index of the tapped item
+            if let items = items {
+                let tabBarWidth = bounds.width
+                let itemCount = CGFloat(items.count)
+                let itemWidth = tabBarWidth / itemCount
+                
+                let index = Int(point.x / itemWidth)
+                if index >= 0 && index < items.count {
+                    // Notify about tab selection
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("TabSelectionChanged"),
+                        object: self,
+                        userInfo: ["selectedIndex": index]
+                    )
+                    
+                    // Update selected item
+                    selectedItem = items[index]
+                    
+                    // Delegate will handle the actual tab change
+                }
+            }
+        }
+        
+        return result
+    }
 }

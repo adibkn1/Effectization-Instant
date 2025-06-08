@@ -16,6 +16,9 @@ class MainTabBarController: UITabBarController {
         super.viewDidLoad()
         setupViewControllers()
         setupCustomTabBar()
+        
+        // Set the delegate to self for tab changes
+        self.delegate = self
     }
     
     override func viewDidLayoutSubviews() {
@@ -64,6 +67,21 @@ class MainTabBarController: UITabBarController {
         ])
         
         customTabBar.items = viewControllers?.map { $0.tabBarItem }
+        customTabBar.selectedItem = customTabBar.items?[selectedIndex]
+    }
+}
+
+// MARK: - UITabBarControllerDelegate
+extension MainTabBarController: UITabBarControllerDelegate {
+    func tabBarController(_ tabBarController: UITabBarController, didSelect viewController: UIViewController) {
+        // Send notification about tab selection change
+        NotificationCenter.default.post(
+            name: NSNotification.Name("TabSelectionChanged"),
+            object: self,
+            userInfo: ["selectedIndex": tabBarController.selectedIndex]
+        )
+        
+        // Also update custom tab bar
         customTabBar.selectedItem = customTabBar.items?[selectedIndex]
     }
 }
