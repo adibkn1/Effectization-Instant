@@ -169,9 +169,9 @@ struct ARClip1App: App {
                     } else {
                         // Network came back online during delay
                         showQRScanner = true
-                    }
                 }
-            }
+        }
+    }
         }
     }
     
