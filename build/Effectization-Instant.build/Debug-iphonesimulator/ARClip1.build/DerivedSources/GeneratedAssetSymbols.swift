@@ -31,6 +31,9 @@ extension ColorResource {
 @available(iOS 11.0, macOS 10.7, tvOS 11.0, *)
 extension ImageResource {
 
+    /// The "QRScanner" asset catalog image resource.
+    static let qrScanner = ImageResource(name: "QRScanner", bundle: resourceBundle)
+
     /// The "arrow" asset catalog image resource.
     static let arrow = ImageResource(name: "arrow", bundle: resourceBundle)
 
@@ -76,6 +79,15 @@ extension SwiftUI.ShapeStyle where Self == SwiftUI.Color {
 @available(macCatalyst, unavailable)
 extension AppKit.NSImage {
 
+    /// The "QRScanner" asset catalog image.
+    static var qrScanner: AppKit.NSImage {
+#if !targetEnvironment(macCatalyst)
+        .init(resource: .qrScanner)
+#else
+        .init()
+#endif
+    }
+
     /// The "arrow" asset catalog image.
     static var arrow: AppKit.NSImage {
 #if !targetEnvironment(macCatalyst)
@@ -101,6 +113,15 @@ extension AppKit.NSImage {
 @available(iOS 11.0, tvOS 11.0, *)
 @available(watchOS, unavailable)
 extension UIKit.UIImage {
+
+    /// The "QRScanner" asset catalog image.
+    static var qrScanner: UIKit.UIImage {
+#if !os(watchOS)
+        .init(resource: .qrScanner)
+#else
+        .init()
+#endif
+    }
 
     /// The "arrow" asset catalog image.
     static var arrow: UIKit.UIImage {

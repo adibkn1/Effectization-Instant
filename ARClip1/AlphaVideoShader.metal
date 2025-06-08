@@ -1,6 +1,4 @@
 #include <metal_stdlib>
-#include <simd/simd.h>
-
 using namespace metal;
 
 // Vertex shader outputs and fragment shader inputs
@@ -15,15 +13,6 @@ struct VertexIn {
     float2 texCoord [[attribute(1)]];
 };
 
-// Helper function for gamma correction
-float3 linearToSRGB(float3 color) {
-    return pow(color, 1.0);
-}
-
-float3 sRGBToLinear(float3 color) {
-    return pow(color, 1.5);
-}
-
 // Pass-through vertex shader
 vertex VertexOut vertexPassthrough(VertexIn in [[stage_in]]) {
     VertexOut out;
@@ -32,55 +21,28 @@ vertex VertexOut vertexPassthrough(VertexIn in [[stage_in]]) {
     return out;
 }
 
-// Fragment shader to combine RGB texture with Alpha mask with proper gamma correction
-fragment float4 combineRGBAlpha(VertexOut in [[stage_in]],
-                               texture2d<float> rgbTexture [[texture(0)]],
-                               texture2d<float> alphaTexture [[texture(1)]],
-                               sampler texSampler [[sampler(0)]]) {
-    
-    // 1. Sample the RGB color from the main video
-    float4 originalRGBColor = rgbTexture.sample(texSampler, in.texCoord);
-    
-    // 2. Convert from sRGB to linear space for processing
-    float3 linearColor = sRGBToLinear(originalRGBColor.rgb);
-    
-    // 3. Sample the alpha mask video
-    float4 alphaMaskColor = alphaTexture.sample(texSampler, in.texCoord);
-    
-    // 4. Convert the alpha mask's color to grayscale
-    float calculatedAlpha = dot(alphaMaskColor.rgb, float3(0.299, 0.587, 0.114));
-    
-    // 5. Convert back to sRGB space for display
-    float3 displayColor = linearToSRGB(linearColor);
-    
-    // 6. Create the final color
-    return float4(displayColor, calculatedAlpha);
+fragment float4 combineRGBAlpha(
+    VertexOut                       in               [[stage_in]],
+    texture2d<float, access::sample> rgbTex          [[texture(0)]],
+    texture2d<float, access::sample> maskTex         [[texture(1)]],
+    sampler                         samp             [[sampler(0)]])
+{
+    float4 rgb   = rgbTex.sample(samp, in.texCoord);   // already linear due to _srgb format
+    float  alpha = maskTex.sample(samp, in.texCoord).r;
+
+    float3 premul = rgb.rgb * alpha;                   // premultiply
+    return float4(premul, alpha);                      // Metal writes linear; display converts to sRGB
 }
 
-// Alternative shader with inverted alpha (black = opaque, white = transparent)
-fragment float4 combineRGBInvertedAlpha(VertexOut in [[stage_in]],
-                                      texture2d<float> rgbTexture [[texture(0)]],
-                                      texture2d<float> alphaTexture [[texture(1)]],
-                                      sampler texSampler [[sampler(0)]]) {
-    
-    // 1. Sample the RGB color from the main video
-    float4 originalRGBColor = rgbTexture.sample(texSampler, in.texCoord);
-    
-    // 2. Convert from sRGB to linear space for processing
-    float3 linearColor = sRGBToLinear(originalRGBColor.rgb);
-    
-    // 3. Sample the alpha mask video
-    float4 alphaMaskColor = alphaTexture.sample(texSampler, in.texCoord);
-    
-    // 4. Convert the alpha mask's color to grayscale
-    float brightness = dot(alphaMaskColor.rgb, float3(0.299, 0.587, 0.114));
-    
-    // 5. Invert the brightness to get the alpha value
-    float calculatedAlpha = 1.0 - brightness;
-    
-    // 6. Convert back to sRGB space for display
-    float3 displayColor = linearToSRGB(linearColor);
-    
-    // 7. Create the final color
-    return float4(displayColor, calculatedAlpha);
+fragment float4 combineRGBInvertedAlpha(
+    VertexOut                       in               [[stage_in]],
+    texture2d<float, access::sample> rgbTex          [[texture(0)]],
+    texture2d<float, access::sample> maskTex         [[texture(1)]],
+    sampler                         samp             [[sampler(0)]])
+{
+    float4 rgb   = rgbTex.sample(samp, in.texCoord);   // already linear due to _srgb format
+    float  alpha = 1.0 - maskTex.sample(samp, in.texCoord).r;  // inverted alpha
+
+    float3 premul = rgb.rgb * alpha;                   // premultiply
+    return float4(premul, alpha);                      // Metal writes linear; display converts to sRGB
 } 

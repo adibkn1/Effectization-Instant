@@ -1,0 +1,12 @@
+Target dependency graph (5 targets)
+Target 'ARClip1' in project 'Effectization-Instant'
+➜ Explicit dependency on target 'PostHog' in project 'PostHog'
+Target 'PostHog' in project 'PostHog'
+➜ Explicit dependency on target 'PostHog' in project 'PostHog'
+➜ Explicit dependency on target 'PostHog_PostHog' in project 'PostHog'
+➜ Explicit dependency on target 'phlibwebp' in project 'PostHog'
+Target 'PostHog' in project 'PostHog'
+➜ Explicit dependency on target 'PostHog_PostHog' in project 'PostHog'
+➜ Explicit dependency on target 'phlibwebp' in project 'PostHog'
+Target 'phlibwebp' in project 'PostHog' (no dependencies)
+Target 'PostHog_PostHog' in project 'PostHog' (no dependencies)

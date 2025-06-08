@@ -1,2 +1,0 @@
-Target dependency graph (1 target)
-Target 'ARClip1' in project 'Effectization-Instant' (no dependencies)

@@ -76,7 +76,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         let pipelineDescriptor = MTLRenderPipelineDescriptor()
         pipelineDescriptor.vertexFunction = library.makeFunction(name: "vertexPassthrough")
         pipelineDescriptor.fragmentFunction = library.makeFunction(name: "combineRGBAlpha")
-        pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+        pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm_srgb
         
         // Create vertex descriptor
         let vertexDescriptor = MTLVertexDescriptor()
@@ -117,7 +117,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         
         // Create texture descriptor for the combined texture
         let textureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: .bgra8Unorm,
+            pixelFormat: .bgra8Unorm_srgb,
             width: Int(videoSize.width),
             height: Int(videoSize.height),
             mipmapped: false
@@ -307,7 +307,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
             textureCache,
             rgbPixelBuffer,
             nil,
-            .bgra8Unorm,
+            .bgra8Unorm_srgb,
             width,
             height,
             0,
@@ -320,7 +320,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
             textureCache,
             alphaPixelBuffer,
             nil,
-            .bgra8Unorm,
+            .bgra8Unorm_srgb,
             CVPixelBufferGetWidth(alphaPixelBuffer),
             CVPixelBufferGetHeight(alphaPixelBuffer),
             0,

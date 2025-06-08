@@ -25,6 +25,16 @@
     "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARContentView.swiftdeps",
     "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARContentView~partial.swiftmodule"
   },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ARView/ARAssetLoader.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARAssetLoader.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARAssetLoader.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARAssetLoader.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARAssetLoader.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARAssetLoader.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARAssetLoader.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARAssetLoader.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARAssetLoader~partial.swiftmodule"
+  },
   "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/ConfigManager.swift" : {
     "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ConfigManager.swiftconstvalues",
     "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ConfigManager.d",
@@ -45,6 +55,36 @@
     "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ContentView.swiftdeps",
     "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ContentView~partial.swiftmodule"
   },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Extensions/URLExtensions.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/URLExtensions.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/URLExtensions.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/URLExtensions.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/URLExtensions.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/URLExtensions.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/URLExtensions.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/URLExtensions.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/URLExtensions~partial.swiftmodule"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Network/NetworkClient.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkClient.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkClient.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkClient.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkClient.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkClient.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkClient.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkClient.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkClient~partial.swiftmodule"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Network/NetworkMonitor.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkMonitor.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkMonitor.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkMonitor.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkMonitor.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkMonitor.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkMonitor.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkMonitor.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NetworkMonitor~partial.swiftmodule"
+  },
   "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/SceneDelegate.swift" : {
     "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/SceneDelegate.swiftconstvalues",
     "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/SceneDelegate.d",
@@ -55,6 +95,16 @@
     "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/SceneDelegate.swiftdeps",
     "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/SceneDelegate~partial.swiftmodule"
   },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/TransparentVideoPlayer.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/TransparentVideoPlayer.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/TransparentVideoPlayer.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/TransparentVideoPlayer.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/TransparentVideoPlayer.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/TransparentVideoPlayer.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/TransparentVideoPlayer.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/TransparentVideoPlayer.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/TransparentVideoPlayer~partial.swiftmodule"
+  },
   "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/UIColorExtension.swift" : {
     "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/UIColorExtension.swiftconstvalues",
     "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/UIColorExtension.d",
@@ -64,6 +114,116 @@
     "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/UIColorExtension.o",
     "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/UIColorExtension.swiftdeps",
     "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/UIColorExtension~partial.swiftmodule"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Utils/ARLogger.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARLogger.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARLogger.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARLogger.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARLogger.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARLogger.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARLogger.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARLogger.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ARLogger~partial.swiftmodule"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Utils/AnalyticsManager.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/AnalyticsManager.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/AnalyticsManager.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/AnalyticsManager.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/AnalyticsManager.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/AnalyticsManager.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/AnalyticsManager.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/AnalyticsManager.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/AnalyticsManager~partial.swiftmodule"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Utils/ConfigApplier.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ConfigApplier.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ConfigApplier.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ConfigApplier.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ConfigApplier.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ConfigApplier.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ConfigApplier.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ConfigApplier.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/ConfigApplier~partial.swiftmodule"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Utils/Constants.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/Constants.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/Constants.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/Constants.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/Constants.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/Constants.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/Constants.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/Constants.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/Constants~partial.swiftmodule"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Utils/QRScannerHelper.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRScannerHelper.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRScannerHelper.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRScannerHelper.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRScannerHelper.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRScannerHelper.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRScannerHelper.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRScannerHelper.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRScannerHelper~partial.swiftmodule"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Views/CTAButtonView.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/CTAButtonView.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/CTAButtonView.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/CTAButtonView.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/CTAButtonView.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/CTAButtonView.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/CTAButtonView.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/CTAButtonView.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/CTAButtonView~partial.swiftmodule"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Views/LoadingView.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/LoadingView.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/LoadingView.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/LoadingView.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/LoadingView.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/LoadingView.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/LoadingView.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/LoadingView.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/LoadingView~partial.swiftmodule"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Views/NoInternetView.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetView.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetView.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetView.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetView.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetView.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetView.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetView.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetView~partial.swiftmodule"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Views/NoInternetViewController.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetViewController.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetViewController.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetViewController.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetViewController.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetViewController.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetViewController.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetViewController.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/NoInternetViewController~partial.swiftmodule"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Views/OverlayView.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/OverlayView.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/OverlayView.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/OverlayView.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/OverlayView.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/OverlayView.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/OverlayView.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/OverlayView.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/OverlayView~partial.swiftmodule"
+  },
+  "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/Effectization-Instant/ViewControllers/QRViewController.swift" : {
+    "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRViewController.swiftconstvalues",
+    "dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRViewController.d",
+    "diagnostics" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRViewController.dia",
+    "index-unit-output-path" : "/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRViewController.o",
+    "llvm-bc" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRViewController.bc",
+    "object" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRViewController.o",
+    "swift-dependencies" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRViewController.swiftdeps",
+    "swiftmodule" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/QRViewController~partial.swiftmodule"
   },
   "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/DerivedSources/GeneratedAssetSymbols.swift" : {
     "const-values" : "/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/build/Effectization-Instant.build/Debug-iphonesimulator/ARClip1.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",

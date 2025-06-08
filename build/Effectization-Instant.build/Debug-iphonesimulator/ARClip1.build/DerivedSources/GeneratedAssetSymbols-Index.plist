@@ -10,6 +10,16 @@
 			<key>catalogPath</key>
 			<string>/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Assets.xcassets</string>
 			<key>objcSymbol</key>
+			<string>ACImageNameQRScanner</string>
+			<key>relativePath</key>
+			<string>./QRScanner.imageset</string>
+			<key>swiftSymbol</key>
+			<string>qrScanner</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/adityaagarwal/Documents/iOS App/Effectization-Instant/ARClip1/Assets.xcassets</string>
+			<key>objcSymbol</key>
 			<string>ACImageNameArrow</string>
 			<key>relativePath</key>
 			<string>./arrow.imageset</string>

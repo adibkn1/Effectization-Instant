@@ -1,0 +1,4 @@
+module phlibwebp {
+umbrella "/Users/adityaagarwal/Library/Developer/Xcode/DerivedData/Effectization-Instant-depswpzfmocwcsbaepxldzpmhdov/SourcePackages/checkouts/posthog-ios/vendor/libwebp"
+export *
+}

@@ -6,6 +6,9 @@
 #define AC_SWIFT_PRIVATE
 #endif
 
+/// The "QRScanner" asset catalog image resource.
+static NSString * const ACImageNameQRScanner AC_SWIFT_PRIVATE = @"QRScanner";
+
 /// The "arrow" asset catalog image resource.
 static NSString * const ACImageNameArrow AC_SWIFT_PRIVATE = @"arrow";
 
