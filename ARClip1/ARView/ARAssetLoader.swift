@@ -1,6 +1,7 @@
 import Foundation
 import ARKit
 import AVFoundation
+import SceneKit
 
 /// Result of video loading: either a standard AVPlayer or a transparent player wrapper.
 enum VideoLoadingResult {
@@ -9,12 +10,13 @@ enum VideoLoadingResult {
 }
 
 /// Loads AR assets (reference image + video) for a given ARConfig.
-class ARAssetLoader {
+class ARAssetLoader: NSObject {
 
   private let config: ARConfig
 
   init(config: ARConfig) {
     self.config = config
+    super.init()
   }
 
   /// Loads the ARReferenceImage from config.targetImageUrl
@@ -55,16 +57,36 @@ class ARAssetLoader {
     }
   }
 
-  /// Loads the video(s) according to config.videoWithTransparency
+  /// Loads the appropriate video based on configuration
   func loadVideo(completion: @escaping (Result<VideoLoadingResult, Error>) -> Void) {
-    if config.videoWithTransparency {
+    // Check if we're in transparent mode with separate RGB+Alpha videos
+    if config.videoWithTransparency == true && config.videoRgbUrl != nil && config.videoAlphaUrl != nil {
+      // Use transparent video mode
       loadTransparentVideo(completion: completion)
+    } else if !config.videoURL.isEmpty {
+      // Show QR scanner instead of trying standard video
+      ARLog.debug("Standard video not allowed - showing QR scanner as requested")
+      showQRScanner()
+      
+      completion(.failure(NSError(
+        domain: "ARAssetLoader",
+        code: -9,
+        userInfo: [NSLocalizedDescriptionKey: "Standard video not allowed, showing QR scanner"]
+      )))
     } else {
-      loadStandardVideo(completion: completion)
+      // No video URL at all
+      ARLog.error("No video URL found in configuration")
+      showQRScanner()
+      
+      completion(.failure(NSError(
+        domain: "ARAssetLoader",
+        code: -2,
+        userInfo: [NSLocalizedDescriptionKey: "No video URL found"]
+      )))
     }
   }
   
-  /// Loads transparent video using separate RGB+Alpha streams
+  /// Loads transparent video with RGB+Alpha channels
   private func loadTransparentVideo(completion: @escaping (Result<VideoLoadingResult, Error>) -> Void) {
     ARLog.debug("🎬 Loading transparent video with separate RGB+Alpha videos")
     
@@ -72,6 +94,10 @@ class ARAssetLoader {
     guard let rgbURL = config.videoRgbUrl,
           let alphaURL = config.videoAlphaUrl else {
       ARLog.error("Missing RGB or Alpha URLs")
+      
+      // Show QR scanner instead of returning error
+      showQRScanner()
+      
       completion(.failure(NSError(
         domain: "ARAssetLoader",
         code: -3,
@@ -92,18 +118,26 @@ class ARAssetLoader {
     // Set callback for errors
     transparentPlayer.onErrorCallback = { error in
       ARLog.error("Transparent video error: \(error.localizedDescription)")
-      ARLog.debug("🔄 Falling back to standard video mode")
+      ARLog.debug("🔄 Showing QR scanner as fallback")
       
-      // Fall back to standard video if available
-      self.loadStandardVideo(fallbackFromTransparent: true, completion: completion)
+      // Show QR scanner immediately without attempting standard video fallback
+      self.showQRScanner()
+      
+      completion(.failure(error))
     }
     
     // Load RGB and Alpha videos
     transparentPlayer.loadVideos(rgbURL: rgbURL, alphaURL: alphaURL) { success in
       if !success {
-        ARLog.error("Failed to load transparent videos, falling back to standard video")
-        // Fall back to standard video
-        self.loadStandardVideo(fallbackFromTransparent: true, completion: completion)
+        ARLog.error("Failed to load transparent videos, showing QR scanner")
+        // Show QR scanner immediately
+        self.showQRScanner()
+        
+        completion(.failure(NSError(
+          domain: "ARAssetLoader",
+          code: -4,
+          userInfo: [NSLocalizedDescriptionKey: "Failed to load transparent videos"]
+        )))
       }
     }
   }
@@ -115,6 +149,10 @@ class ARAssetLoader {
     
     guard let videoURLString = videoURLString, let videoURL = URL(string: videoURLString) else {
       ARLog.error("Invalid video URL: \(fallbackFromTransparent ? String(describing: config.videoRgbUrl) : config.videoURL)")
+      
+      // Show QR scanner instead of returning error
+      showQRScanner()
+      
       completion(.failure(NSError(
         domain: "ARAssetLoader",
         code: -5,
@@ -125,21 +163,40 @@ class ARAssetLoader {
     
     ARLog.debug("🎬 Using standard video mode: \(videoURL.absoluteString)")
     
-    // If HLS stream (.m3u8), use AVPlayer directly
-    if videoURL.pathExtension.lowercased() == "m3u8" {
-      ARLog.debug("Detected HLS stream (.m3u8), using AVPlayer directly")
-      setupHLSPlayer(with: videoURL, completion: completion)
-      return
-    }
+    // Don't fall back to standard video, just show QR scanner
+    ARLog.debug("Standard video not allowed - showing QR scanner as requested")
+    showQRScanner()
     
-    // Otherwise download the file
-    downloadAndSetupVideo(from: videoURL, completion: completion)
+    completion(.failure(NSError(
+      domain: "ARAssetLoader",
+      code: -8,
+      userInfo: [NSLocalizedDescriptionKey: "Standard video not allowed, showing QR scanner"]
+    )))
   }
   
   /// Set up HLS player
   private func setupHLSPlayer(with videoURL: URL, completion: @escaping (Result<VideoLoadingResult, Error>) -> Void) {
     let asset = AVURLAsset(url: videoURL)
     let playerItem = AVPlayerItem(asset: asset)
+    
+    // Add observer to check for loading errors
+    NotificationCenter.default.addObserver(
+      forName: .AVPlayerItemFailedToPlayToEndTime,
+      object: playerItem,
+      queue: .main
+    ) { [weak self] notification in
+      guard let self = self else { return }
+      
+      if let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error {
+        ARLog.error("HLS video failed to play: \(error.localizedDescription)")
+        self.showQRScanner()
+        completion(.failure(error))
+      }
+    }
+    
+    // Monitor item status
+    playerItem.addObserver(self, forKeyPath: "status", options: [.new], context: nil)
+    
     let player = AVPlayer(playerItem: playerItem)
     player.automaticallyWaitsToMinimizeStalling = false
     player.actionAtItemEnd = .none // For looping
@@ -155,8 +212,23 @@ class ARAssetLoader {
       player?.play()
     }
     
-    ARLog.debug("✅ HLS Video player created and ready")
-    completion(.success(.standard(player: player)))
+    // Give a short grace period to see if the video starts loading
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self, weak playerItem] in
+      guard let self = self, let playerItem = playerItem else { return }
+      
+      // Check if the item has started loading properly
+      if playerItem.status == .failed {
+        ARLog.error("HLS Video failed to load: \(playerItem.error?.localizedDescription ?? "Unknown error")")
+        self.showQRScanner()
+        completion(.failure(playerItem.error ?? NSError(domain: "ARAssetLoader", code: -6, userInfo: nil)))
+      } else {
+        ARLog.debug("✅ HLS Video player created and ready with looping enabled")
+        completion(.success(.standard(player: player)))
+      }
+      
+      // Clean up observation
+      playerItem.removeObserver(self, forKeyPath: "status")
+    }
   }
   
   /// Download video and set up player
@@ -196,12 +268,20 @@ class ARAssetLoader {
       
       if let error = error {
         ARLog.error("VIDEO DOWNLOAD FAILED: \(error.localizedDescription)")
+        // Show QR scanner immediately
+        DispatchQueue.main.async {
+          self.showQRScanner()
+        }
         completion(.failure(error))
         return
       }
       
       guard let tempURL = tempURL else {
         ARLog.error("VIDEO DOWNLOAD FAILED: No temporary URL")
+        // Show QR scanner immediately
+        DispatchQueue.main.async {
+          self.showQRScanner()
+        }
         completion(.failure(NSError(
           domain: "ARAssetLoader",
           code: -7,
@@ -226,13 +306,11 @@ class ARAssetLoader {
       } catch {
         ARLog.error("ERROR saving downloaded video: \(error.localizedDescription)")
         
-        // Try to use existing file if available
-        if FileManager.default.fileExists(atPath: destinationURL.path) {
-          ARLog.debug("🔄 Using existing cached video file")
-          self.setupVideoPlayer(with: destinationURL, completion: completion)
-        } else {
-          completion(.failure(error))
+        // Show QR scanner immediately instead of trying existing file
+        DispatchQueue.main.async {
+          self.showQRScanner()
         }
+        completion(.failure(error))
       }
     }
     
@@ -264,5 +342,29 @@ class ARAssetLoader {
     
     ARLog.debug("✅ Video is FULLY LOADED and ready with looping enabled")
     completion(.success(.standard(player: player)))
+  }
+  
+  /// Helper method to show QR scanner
+  private func showQRScanner() {
+    DispatchQueue.main.async {
+      ARLog.debug("🔄 Showing QR scanner as fallback")
+      QRScannerHelper.replaceRootWithQRScanner()
+    }
+  }
+
+  // MARK: - KVO Observation
+  override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+    if keyPath == "status", let playerItem = object as? AVPlayerItem {
+      switch playerItem.status {
+      case .failed:
+        // Handle failure
+        ARLog.error("Video player item failed: \(playerItem.error?.localizedDescription ?? "Unknown error")")
+        // No need to call showQRScanner() here as it's handled in the setupHLSPlayer completion
+      case .readyToPlay:
+        ARLog.debug("Video player item ready to play")
+      default:
+        break
+      }
+    }
   }
 } 

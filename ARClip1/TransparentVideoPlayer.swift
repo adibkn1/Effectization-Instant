@@ -14,6 +14,9 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
     
     private var isRGBReady = false
     private var isAlphaReady = false
+    private var hasRGBFailed = false
+    private var hasAlphaFailed = false
+    private var arePlayersObserved = false
     
     // Video output for pixel buffer access
     private var rgbVideoOutput: AVPlayerItemVideoOutput?
@@ -25,8 +28,6 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
     private var pipelineState: MTLRenderPipelineState?
     private var commandQueue: MTLCommandQueue?
     private var textureCache: CVMetalTextureCache?
-    private var rgbTexture: MTLTexture?
-    private var alphaTexture: MTLTexture?
     
     // Output properties
     private var videoSize = CGSize(width: 1280, height: 720) // Default, will be updated
@@ -36,6 +37,11 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
     // Status callbacks
     var onReadyCallback: (() -> Void)?
     var onErrorCallback: ((Error) -> Void)?
+    private var loadCompletion: ((Bool) -> Void)?
+    
+    // Observation tokens
+    private var rgbPlayerObservation: NSKeyValueObservation?
+    private var alphaPlayerObservation: NSKeyValueObservation?
     
     // MARK: - Initialization
     override init() {
@@ -46,7 +52,6 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
     private func setupMetal() {
         // Set up Metal device
         guard let device = MTLCreateSystemDefaultDevice() else {
-            print("[TransparentVideo] ❌ Failed to create Metal device")
             ARLog.error("Failed to create Metal device")
             return
         }
@@ -54,7 +59,6 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         
         // Create command queue
         guard let commandQueue = device.makeCommandQueue() else {
-            print("[TransparentVideo] ❌ Failed to create command queue")
             ARLog.error("Failed to create command queue")
             return
         }
@@ -67,7 +71,6 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         
         // Load shader library
         guard let library = device.makeDefaultLibrary() else {
-            print("[TransparentVideo] ❌ Failed to create Metal library")
             ARLog.error("Failed to create Metal library")
             return
         }
@@ -101,10 +104,8 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         
         do {
             pipelineState = try device.makeRenderPipelineState(descriptor: pipelineDescriptor)
-            print("[TransparentVideo] ✅ Created Metal pipeline state successfully")
             ARLog.debug("Created Metal pipeline state successfully")
         } catch {
-            print("[TransparentVideo] ❌ Failed to create pipeline state: \(error)")
             ARLog.error("Failed to create pipeline state: \(error)")
         }
         
@@ -136,29 +137,25 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
     
     // MARK: - Public Methods
     func loadVideos(rgbURL: URL, alphaURL: URL, completion: @escaping (Bool) -> Void) {
-        print("[TransparentVideo] 📥 Loading RGB video from: \(rgbURL.absoluteString)")
-        print("[TransparentVideo] 📥 Loading Alpha video from: \(alphaURL.absoluteString)")
         ARLog.debug("📥 Loading RGB video from: \(rgbURL.absoluteString)")
         ARLog.debug("📥 Loading Alpha video from: \(alphaURL.absoluteString)")
         
         // Reset status
         isRGBReady = false
         isAlphaReady = false
+        hasRGBFailed = false
+        hasAlphaFailed = false
+        loadCompletion = completion
         
         // Create asset options for better streaming
         let assetOptions = [AVURLAssetPreferPreciseDurationAndTimingKey: true]
         
         // Set up video output for RGB video
-        let rgbOutputSettings = [
+        let outputSettings = [
             String(kCVPixelBufferPixelFormatTypeKey): Int(kCVPixelFormatType_32BGRA)
         ]
-        rgbVideoOutput = AVPlayerItemVideoOutput(pixelBufferAttributes: rgbOutputSettings)
-        
-        // Set up video output for Alpha video
-        let alphaOutputSettings = [
-            String(kCVPixelBufferPixelFormatTypeKey): Int(kCVPixelFormatType_32BGRA)
-        ]
-        alphaVideoOutput = AVPlayerItemVideoOutput(pixelBufferAttributes: alphaOutputSettings)
+        rgbVideoOutput = AVPlayerItemVideoOutput(pixelBufferAttributes: outputSettings)
+        alphaVideoOutput = AVPlayerItemVideoOutput(pixelBufferAttributes: outputSettings)
         
         // Setup RGB video
         let rgbAsset = AVURLAsset(url: rgbURL, options: assetOptions)
@@ -184,9 +181,8 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         // Mute the alpha video (it's just for the mask)
         alphaPlayer?.volume = 0
         
-        // Add observers for status AFTER creating players
-        rgbPlayerItem?.addObserver(self, forKeyPath: "status", options: [.new, .initial], context: nil)
-        alphaPlayerItem?.addObserver(self, forKeyPath: "status", options: [.new, .initial], context: nil)
+        // Set up direct player observations using KVO
+        setupPlayerObservations()
         
         // Setup video looping
         NotificationCenter.default.addObserver(
@@ -195,26 +191,151 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
             name: .AVPlayerItemDidPlayToEndTime,
             object: rgbPlayerItem
         )
+    }
+    
+    // Set up KVO observations for player status
+    private func setupPlayerObservations() {
+        guard !arePlayersObserved, let rgbPlayer = rgbPlayer, let alphaPlayer = alphaPlayer else {
+            return
+        }
         
-        // Do NOT preroll immediately, wait for status to be readyToPlay
-        // We'll complete in the observer when both videos are ready
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-            if !self.isRGBReady || !self.isAlphaReady {
-                print("[TransparentVideo] ⚠️ Timeout waiting for videos to load")
-                ARLog.warning("Timeout waiting for videos to load")
+        // Remove any existing observations
+        rgbPlayerObservation?.invalidate()
+        alphaPlayerObservation?.invalidate()
+        
+        // Start fresh observations
+        rgbPlayerObservation = rgbPlayer.observe(\.status, options: [.new, .initial]) { [weak self] player, change in
+            DispatchQueue.main.async {
+                self?.handlePlayerStatusChange(player: player, isRGB: true)
+            }
+        }
+        
+        alphaPlayerObservation = alphaPlayer.observe(\.status, options: [.new, .initial]) { [weak self] player, change in
+            DispatchQueue.main.async {
+                self?.handlePlayerStatusChange(player: player, isRGB: false)
+            }
+        }
+        
+        // Also observe player items for more detailed status
+        rgbPlayerItem?.addObserver(self, forKeyPath: "status", options: [.new, .initial], context: nil)
+        alphaPlayerItem?.addObserver(self, forKeyPath: "status", options: [.new, .initial], context: nil)
+        
+        arePlayersObserved = true
+        ARLog.debug("👀 Set up KVO observations for both players")
+    }
+    
+    // Handle player status changes
+    private func handlePlayerStatusChange(player: AVPlayer, isRGB: Bool) {
+        switch player.status {
+        case .readyToPlay:
+            if isRGB {
+                ARLog.debug("✅ RGB player ready to play")
+                isRGBReady = true
+            } else {
+                ARLog.debug("✅ Alpha player ready to play")
+                isAlphaReady = true
+            }
+            
+            // Check if both players are ready
+            checkIfBothPlayersReady()
+            
+        case .failed:
+            let errorMessage = player.error?.localizedDescription ?? "Unknown error"
+            if isRGB {
+                ARLog.error("RGB player failed: \(errorMessage)")
+                hasRGBFailed = true
+            } else {
+                ARLog.error("Alpha player failed: \(errorMessage)")
+                hasAlphaFailed = true
+            }
+            
+            // Report failure
+            if let completion = loadCompletion {
+                loadCompletion = nil
                 completion(false)
+            }
+            
+            onErrorCallback?(player.error ?? NSError(
+                domain: "TransparentVideoPlayer",
+                code: isRGB ? 1 : 2,
+                userInfo: [NSLocalizedDescriptionKey: "\(isRGB ? "RGB" : "Alpha") player failed to load"]
+            ))
+            
+        default:
+            if isRGB {
+                ARLog.debug("🔄 RGB player status: \(player.status.rawValue)")
+            } else {
+                ARLog.debug("🔄 Alpha player status: \(player.status.rawValue)")
+            }
+        }
+    }
+    
+    // Check if both players are ready and start playback if they are
+    private func checkIfBothPlayersReady() {
+        if isRGBReady && isAlphaReady {
+            ARLog.debug("✅ Both RGB and Alpha players are ready to play")
+            
+            // Get video dimensions
+            updateVideoSize()
+            
+            // Preroll both players to ensure smooth start
+            rgbPlayer?.preroll(atRate: 1.0) { [weak self] finished in
+                guard let self = self else { return }
+                
+                self.alphaPlayer?.preroll(atRate: 1.0) { [weak self] finished in
+                    guard let self = self else { return }
+                    
+                    // Both players prerolled, now we can notify ready
+                    DispatchQueue.main.async {
+                        if let completion = self.loadCompletion {
+                            self.loadCompletion = nil
+                            completion(true)
+                        }
+                        self.onReadyCallback?()
+                    }
+                }
+            }
+        }
+    }
+    
+    // Update video size from player item
+    private func updateVideoSize() {
+        // Use the modern iOS 16+ API since minimum deployment is iOS 16.6
+        if let playerItem = rgbPlayerItem {
+            Task.detached {
+                if let track = try? await playerItem.asset.loadTracks(withMediaType: .video).first {
+                    let size = try? await track.load(.naturalSize)
+                    let videoSize = size ?? CGSize(width: 1280, height: 720)
+                    ARLog.debug("📐 Video dimensions: \(videoSize.width) x \(videoSize.height)")
+                    
+                    // Update on main thread
+                    await MainActor.run {
+                        self.videoSize = videoSize
+                        // Recreate texture with new dimensions
+                        self.setupCombinedTexture()
+                    }
+                }
             }
         }
     }
     
     func play() {
-        // Start display link for frame sync if needed
+        // Only start if both players are ready
+        guard isRGBReady && isAlphaReady else {
+            ARLog.warning("Attempted to play before both players are ready")
+            return
+        }
+        
+        // Start display link for frame sync
         setupDisplayLink()
         
-        // Start both videos in sync
+        // Don't seek to beginning unless it's the first time playing
+        // This allows the video to resume from where it was paused
+        
+        // Start both videos in perfect sync
         rgbPlayer?.play()
         alphaPlayer?.play()
-        print("[TransparentVideo] ▶️ Playing synchronized RGB and Alpha videos")
+        
         ARLog.debug("▶️ Playing synchronized RGB and Alpha videos")
     }
     
@@ -226,7 +347,6 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         // Pause videos
         rgbPlayer?.pause()
         alphaPlayer?.pause()
-        print("[TransparentVideo] ⏸️ Paused RGB and Alpha videos")
         ARLog.debug("⏸️ Paused RGB and Alpha videos")
     }
     
@@ -332,7 +452,6 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
               alphaStatus == kCVReturnSuccess,
               let rgbTextureRef = rgbTextureRef,
               let alphaTextureRef = alphaTextureRef else {
-            print("[TransparentVideo] ❌ Failed to create Metal textures from pixel buffers")
             ARLog.error("Failed to create Metal textures from pixel buffers")
             return
         }
@@ -343,7 +462,6 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         
         guard let rgbTexture = rgbTexture,
               let alphaTexture = alphaTexture else {
-            print("[TransparentVideo] ❌ Failed to get Metal textures")
             ARLog.error("Failed to get Metal textures")
             return
         }
@@ -357,14 +475,12 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         
         // Create command buffer
         guard let commandBuffer = commandQueue.makeCommandBuffer() else {
-            print("[TransparentVideo] ❌ Failed to create command buffer")
             ARLog.error("Failed to create command buffer")
             return
         }
         
         // Create render command encoder
         guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else {
-            print("[TransparentVideo] ❌ Failed to create render encoder")
             ARLog.error("Failed to create render encoder")
             return
         }
@@ -386,7 +502,6 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
             length: vertices.count * MemoryLayout<Float>.stride,
             options: .storageModeShared
         ) else {
-            print("[TransparentVideo] ❌ Failed to create vertex buffer")
             ARLog.error("Failed to create vertex buffer")
             renderEncoder.endEncoding()
             return
@@ -432,128 +547,77 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         if playerItem == rgbPlayerItem {
             switch playerItem.status {
             case .readyToPlay:
-                print("[TransparentVideo] ✅ RGB video ready to play")
                 ARLog.debug("✅ RGB video ready to play")
                 isRGBReady = true
-                // Only preroll when it's ready to play
-                rgbPlayer?.preroll(atRate: 1.0)
-                checkIfBothVideosReady()
+                checkIfBothPlayersReady()
             case .failed:
-                print("[TransparentVideo] ❌ RGB video failed: \(playerItem.error?.localizedDescription ?? "Unknown error")")
                 ARLog.error("RGB video failed: \(playerItem.error?.localizedDescription ?? "Unknown error")")
-                onErrorCallback?(playerItem.error ?? NSError(domain: "TransparentVideoPlayer", code: 1, userInfo: nil))
+                hasRGBFailed = true
+                // Immediately fail and call completion
+                if let completion = loadCompletion {
+                    loadCompletion = nil
+                    completion(false)
+                }
+                onErrorCallback?(playerItem.error ?? NSError(domain: "TransparentVideoPlayer", code: 1, userInfo: [NSLocalizedDescriptionKey: "RGB video failed to load"]))
             default:
                 break
             }
         } else if playerItem == alphaPlayerItem {
             switch playerItem.status {
             case .readyToPlay:
-                print("[TransparentVideo] ✅ Alpha video ready to play")
                 ARLog.debug("✅ Alpha video ready to play")
                 isAlphaReady = true
-                // Only preroll when it's ready to play
-                alphaPlayer?.preroll(atRate: 1.0)
-                checkIfBothVideosReady()
+                checkIfBothPlayersReady()
             case .failed:
-                print("[TransparentVideo] ❌ Alpha video failed: \(playerItem.error?.localizedDescription ?? "Unknown error")")
                 ARLog.error("Alpha video failed: \(playerItem.error?.localizedDescription ?? "Unknown error")")
-                onErrorCallback?(playerItem.error ?? NSError(domain: "TransparentVideoPlayer", code: 2, userInfo: nil))
+                hasAlphaFailed = true
+                // Immediately fail and call completion
+                if let completion = loadCompletion {
+                    loadCompletion = nil
+                    completion(false)
+                }
+                onErrorCallback?(playerItem.error ?? NSError(domain: "TransparentVideoPlayer", code: 2, userInfo: [NSLocalizedDescriptionKey: "Alpha video failed to load"]))
             default:
                 break
             }
         }
     }
     
-    private func checkIfBothVideosReady() {
-        if isRGBReady && isAlphaReady {
-            print("[TransparentVideo] ✅ Both RGB and Alpha videos are ready")
-            ARLog.debug("✅ Both RGB and Alpha videos are ready")
-            // Update video size from the actual asset
-            if let playerItem = rgbPlayerItem, #available(iOS 16.0, *) {
-                // Using a non-capturing async Task with the new API
-                Task.detached {
-                    if let track = try? await playerItem.asset.loadTracks(withMediaType: .video).first {
-                        let size = try? await track.load(.naturalSize)
-                        let videoSize = size ?? CGSize(width: 1280, height: 720)
-                        print("[TransparentVideo] 📐 Video dimensions: \(videoSize.width) x \(videoSize.height)")
-                        ARLog.debug("📐 Video dimensions: \(videoSize.width) x \(videoSize.height)")
-                        
-                        // Update on main thread
-                        await MainActor.run {
-                            self.videoSize = videoSize
-                            // Recreate texture with new dimensions
-                            self.setupCombinedTexture()
-                            self.onReadyCallback?()
-                        }
-                    } else {
-                        await MainActor.run {
-                            self.onReadyCallback?()
-                        }
-                    }
-                }
-            } else {
-                // Fallback for older iOS versions
-                #if compiler(>=5.7)
-                if #available(iOS 16.0, *) {
-                    // This code should not be reached, but compiler needs it
-                    // for full coverage of if/else branch
-                    Task.detached {
-                        await MainActor.run {
-                            self.onReadyCallback?()
-                        }
-                    }
-                } else {
-                    // Old API for iOS 15 and below
-                    if let track = rgbPlayerItem?.asset.tracks(withMediaType: .video).first {
-                        videoSize = track.naturalSize
-                        print("[TransparentVideo] 📐 Video dimensions: \(videoSize.width) x \(videoSize.height)")
-                        ARLog.debug("📐 Video dimensions: \(videoSize.width) x \(videoSize.height)")
-                        
-                        // Recreate texture with new dimensions
-                        setupCombinedTexture()
-                    }
-                    // Notify ready
-                    onReadyCallback?()
-                }
-                #else
-                // Older Swift compiler needs a different approach
-                if let track = rgbPlayerItem?.asset.tracks(withMediaType: .video).first {
-                    videoSize = track.naturalSize
-                    print("[TransparentVideo] 📐 Video dimensions: \(videoSize.width) x \(videoSize.height)")
-                    ARLog.debug("📐 Video dimensions: \(videoSize.width) x \(videoSize.height)")
-                    
-                    // Recreate texture with new dimensions
-                    setupCombinedTexture()
-                }
-                // Notify ready
-                onReadyCallback?()
-                #endif
-            }
-        }
-    }
-    
     @objc private func playerItemDidReachEnd(notification: Notification) {
         // Loop both videos when one reaches the end
-        rgbPlayer?.seek(to: .zero)
-        alphaPlayer?.seek(to: .zero)
-        rgbPlayer?.play()
-        alphaPlayer?.play()
-        print("[TransparentVideo] 🔄 Video reached end, looping back to start")
-        ARLog.debug("🔄 Video reached end, looping back to start")
+        let currentTime = CMTime.zero
+        rgbPlayer?.seek(to: currentTime, toleranceBefore: .zero, toleranceAfter: .zero)
+        alphaPlayer?.seek(to: currentTime, toleranceBefore: .zero, toleranceAfter: .zero)
+        
+        // Restart playback if both are still ready and continue looping
+        if isRGBReady && isAlphaReady {
+            rgbPlayer?.play()
+            alphaPlayer?.play()
+            ARLog.debug("🔄 Video reached end, looping back to start automatically")
+        }
     }
     
     // MARK: - Cleanup
     deinit {
+        // Clean up display link
         displayLink?.invalidate()
         displayLink = nil
         
+        // Clean up KVO observations
+        rgbPlayerObservation?.invalidate()
+        alphaPlayerObservation?.invalidate()
+        
+        // Clean up notifications
         rgbPlayerItem?.removeObserver(self, forKeyPath: "status")
         alphaPlayerItem?.removeObserver(self, forKeyPath: "status")
         NotificationCenter.default.removeObserver(self)
         
+        // Clean up players
         rgbPlayer?.pause()
         alphaPlayer?.pause()
         rgbPlayer = nil
         alphaPlayer = nil
+        
+        ARLog.debug("🧹 Cleaned up all resources")
     }
 } 
