@@ -43,6 +43,9 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
     private var rgbPlayerObservation: NSKeyValueObservation?
     private var alphaPlayerObservation: NSKeyValueObservation?
     
+    // Add new property for frame duration
+    private var frameDuration: Double = 1.0 / 30.0 // Default 30fps
+    
     // MARK: - Initialization
     override init() {
         super.init()
@@ -78,7 +81,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         // Create pipeline state
         let pipelineDescriptor = MTLRenderPipelineDescriptor()
         pipelineDescriptor.vertexFunction = library.makeFunction(name: "vertexPassthrough")
-        pipelineDescriptor.fragmentFunction = library.makeFunction(name: "combineRGBAlpha")
+        pipelineDescriptor.fragmentFunction = library.makeFunction(name: "combineRGBAlphaWithTransparency")
         pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm_srgb
         
         // Create vertex descriptor
@@ -308,6 +311,12 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
                     let videoSize = size ?? CGSize(width: 1280, height: 720)
                     ARLog.debug("📐 Video dimensions: \(videoSize.width) x \(videoSize.height)")
                     
+                    // Update frame duration using modern API
+                    if let frameRate = try? await track.load(.nominalFrameRate) {
+                        self.frameDuration = 1.0 / Double(frameRate)
+                        ARLog.debug("📊 Frame rate: \(frameRate), frame duration: \(self.frameDuration)")
+                    }
+                    
                     // Update on main thread
                     await MainActor.run {
                         self.videoSize = videoSize
@@ -404,13 +413,16 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
             return
         }
         
-        // Get the current time
-        let rgbTime = rgbVideoOutput.itemTime(forHostTime: CACurrentMediaTime())
-        let alphaTime = alphaVideoOutput.itemTime(forHostTime: CACurrentMediaTime())
+        // Use RGB as master
+        let hostTime = CACurrentMediaTime()
+        let rgbTime = rgbVideoOutput.itemTime(forHostTime: hostTime)
         
-        // Get pixel buffers for the current time
-        guard let rgbPixelBuffer = rgbVideoOutput.copyPixelBuffer(forItemTime: rgbTime, itemTimeForDisplay: nil),
-              let alphaPixelBuffer = alphaVideoOutput.copyPixelBuffer(forItemTime: alphaTime, itemTimeForDisplay: nil) else {
+        // Try to get the alpha frame for the *same* time as RGB
+        guard rgbVideoOutput.hasNewPixelBuffer(forItemTime: rgbTime),
+              alphaVideoOutput.hasNewPixelBuffer(forItemTime: rgbTime),
+              let rgbPixelBuffer = rgbVideoOutput.copyPixelBuffer(forItemTime: rgbTime, itemTimeForDisplay: nil),
+              let alphaPixelBuffer = alphaVideoOutput.copyPixelBuffer(forItemTime: rgbTime, itemTimeForDisplay: nil) else {
+            // If either frame is missing, skip rendering
             return
         }
         
@@ -591,8 +603,8 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         
         // Restart playback if both are still ready and continue looping
         if isRGBReady && isAlphaReady {
-            rgbPlayer?.play()
-            alphaPlayer?.play()
+        rgbPlayer?.play()
+        alphaPlayer?.play()
             ARLog.debug("🔄 Video reached end, looping back to start automatically")
         }
     }

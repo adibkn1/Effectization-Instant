@@ -223,7 +223,7 @@ class ARAssetLoader: NSObject {
         completion(.failure(playerItem.error ?? NSError(domain: "ARAssetLoader", code: -6, userInfo: nil)))
       } else {
         ARLog.debug("✅ HLS Video player created and ready with looping enabled")
-        completion(.success(.standard(player: player)))
+    completion(.success(.standard(player: player)))
       }
       
       // Clean up observation
@@ -310,7 +310,7 @@ class ARAssetLoader: NSObject {
         DispatchQueue.main.async {
           self.showQRScanner()
         }
-        completion(.failure(error))
+          completion(.failure(error))
       }
     }
     

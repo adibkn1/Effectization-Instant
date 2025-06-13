@@ -45,4 +45,16 @@ fragment float4 combineRGBInvertedAlpha(
 
     float3 premul = rgb.rgb * alpha;                   // premultiply
     return float4(premul, alpha);                      // Metal writes linear; display converts to sRGB
+}
+
+// New shader for correct RGB+Alpha compositing
+fragment float4 combineRGBAlphaWithTransparency(
+    VertexOut in [[stage_in]],
+    texture2d<float, access::sample> rgbTex [[texture(0)]],
+    texture2d<float, access::sample> maskTex [[texture(1)]],
+    sampler samp [[sampler(0)]])
+{
+    float4 rgb = rgbTex.sample(samp, in.texCoord);
+    float alpha = maskTex.sample(samp, in.texCoord).r;
+    return float4(rgb.rgb, rgb.a * alpha);
 } 

@@ -182,9 +182,9 @@ class QRViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate
             }
         } else {
             // Not in a tab bar context, start normally
-            if captureSession?.isRunning == false {
-                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                    self?.captureSession?.startRunning()
+        if captureSession?.isRunning == false {
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                self?.captureSession?.startRunning()
                 }
             }
         }
