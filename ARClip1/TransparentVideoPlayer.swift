@@ -46,6 +46,17 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
     // Add new property for frame duration
     private var frameDuration: Double = 1.0 / 30.0 // Default 30fps
     
+    // Add state management
+    private var isPlaying = false
+    private var lastPauseTime: CMTime?
+    private var isProcessingFrame = false
+    private var frameQueue = DispatchQueue(label: "com.effectization.videoframe", qos: .userInteractive)
+    private var renderingSemaphore = DispatchSemaphore(value: 1)
+    
+    // Track performance
+    private var lastFrameTime: CFTimeInterval = 0
+    private var frameDropCount = 0
+    
     // MARK: - Initialization
     override init() {
         super.init()
@@ -59,6 +70,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
             return
         }
         self.device = device
+        ARLog.debug("🔧 Metal device initialized: \(device.name)")
         
         // Create command queue
         guard let commandQueue = device.makeCommandQueue() else {
@@ -66,17 +78,24 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
             return
         }
         self.commandQueue = commandQueue
+        ARLog.debug("✅ Command queue created")
         
         // Create texture cache
         var textureCache: CVMetalTextureCache?
-        CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, device, nil, &textureCache)
+        let textureCacheResult = CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, device, nil, &textureCache)
+        if textureCacheResult != kCVReturnSuccess {
+            ARLog.error("Failed to create texture cache: \(textureCacheResult)")
+            return
+        }
         self.textureCache = textureCache
+        ARLog.debug("✅ Metal texture cache created")
         
         // Load shader library
         guard let library = device.makeDefaultLibrary() else {
             ARLog.error("Failed to create Metal library")
             return
         }
+        ARLog.debug("📚 Metal shader library loaded")
         
         // Create pipeline state
         let pipelineDescriptor = MTLRenderPipelineDescriptor()
@@ -107,7 +126,7 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         
         do {
             pipelineState = try device.makeRenderPipelineState(descriptor: pipelineDescriptor)
-            ARLog.debug("Created Metal pipeline state successfully")
+            ARLog.debug("✅ Created Metal pipeline state with shader: combineRGBAlphaWithTransparency")
         } catch {
             ARLog.error("Failed to create pipeline state: \(error)")
         }
@@ -187,16 +206,13 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         // Set up direct player observations using KVO
         setupPlayerObservations()
         
-        // Setup video looping
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(playerItemDidReachEnd),
-            name: .AVPlayerItemDidPlayToEndTime,
-            object: rgbPlayerItem
-        )
+        // Setup video looping for both RGB and Alpha videos
+        setupVideoLooping()
+        
+        // Setup display link for frame synchronization
+        setupDisplayLink()
     }
     
-    // Set up KVO observations for player status
     private func setupPlayerObservations() {
         guard !arePlayersObserved, let rgbPlayer = rgbPlayer, let alphaPlayer = alphaPlayer else {
             return
@@ -227,7 +243,6 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         ARLog.debug("👀 Set up KVO observations for both players")
     }
     
-    // Handle player status changes
     private func handlePlayerStatusChange(player: AVPlayer, isRGB: Bool) {
         switch player.status {
         case .readyToPlay:
@@ -273,7 +288,6 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         }
     }
     
-    // Check if both players are ready and start playback if they are
     private func checkIfBothPlayersReady() {
         if isRGBReady && isAlphaReady {
             ARLog.debug("✅ Both RGB and Alpha players are ready to play")
@@ -301,7 +315,6 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         }
     }
     
-    // Update video size from player item
     private func updateVideoSize() {
         // Use the modern iOS 16+ API since minimum deployment is iOS 16.6
         if let playerItem = rgbPlayerItem {
@@ -328,35 +341,225 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         }
     }
     
-    func play() {
-        // Only start if both players are ready
-        guard isRGBReady && isAlphaReady else {
-            ARLog.warning("Attempted to play before both players are ready")
-            return
+    private func setupVideoLooping() {
+        // Remove any existing observers
+        NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: nil)
+        
+        // Observe RGB video end
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(playerItemDidReachEnd),
+            name: .AVPlayerItemDidPlayToEndTime,
+            object: rgbPlayerItem
+        )
+        
+        // Observe Alpha video end
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(playerItemDidReachEnd),
+            name: .AVPlayerItemDidPlayToEndTime,
+            object: alphaPlayerItem
+        )
+        
+        // Set both players to loop mode
+        rgbPlayer?.actionAtItemEnd = .none
+        alphaPlayer?.actionAtItemEnd = .none
+    }
+    
+    @objc private func playerItemDidReachEnd(notification: Notification) {
+        ARLog.debug("🔄 Video reached end, handling loop")
+        
+        // Determine which video ended
+        let isRGBVideo = notification.object as? AVPlayerItem == rgbPlayerItem
+        
+        if isRGBVideo {
+            ARLog.debug("RGB video reached end")
+        } else {
+            ARLog.debug("Alpha video reached end")
         }
         
-        // Start display link for frame sync
-        setupDisplayLink()
+        // Pause both videos
+        rgbPlayer?.pause()
+        alphaPlayer?.pause()
         
-        // Don't seek to beginning unless it's the first time playing
-        // This allows the video to resume from where it was paused
+        // Reset both videos to start with precise timing
+        let currentTime = CMTime.zero
+        let tolerance = CMTime.zero
         
-        // Start both videos in perfect sync
-        rgbPlayer?.play()
-        alphaPlayer?.play()
+        // Ensure both videos are ready before restarting
+        let group = DispatchGroup()
         
-        ARLog.debug("▶️ Playing synchronized RGB and Alpha videos")
+        group.enter()
+        rgbPlayer?.seek(to: currentTime, toleranceBefore: tolerance, toleranceAfter: tolerance) { _ in
+            group.leave()
+        }
+        
+        group.enter()
+        alphaPlayer?.seek(to: currentTime, toleranceBefore: tolerance, toleranceAfter: tolerance) { _ in
+            group.leave()
+        }
+        
+        // Wait for both seeks to complete before restarting
+        group.notify(queue: .main) { [weak self] in
+            guard let self = self,
+                  self.isRGBReady && self.isAlphaReady else {
+                ARLog.error("⚠️ Cannot restart videos - not all players ready")
+                return
+            }
+            
+            // Set rates for smooth restart
+            self.rgbPlayer?.rate = 1.0
+            self.alphaPlayer?.rate = 1.0
+            
+            ARLog.debug("▶️ Restarting both videos in sync")
+            self.rgbPlayer?.play()
+            self.alphaPlayer?.play()
+        }
+    }
+    
+    func play() {
+        guard !isPlaying else { return }
+        ARLog.debug("▶️ Play requested")
+        
+        // Reset frame processing state
+        isProcessingFrame = false
+        frameDropCount = 0
+        lastFrameTime = 0
+        
+        frameQueue.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Wait for any pending operations
+            _ = renderingSemaphore.wait(timeout: .now() + 0.1)
+            
+            DispatchQueue.main.async {
+                self.isPlaying = true
+                self.lastPauseTime = nil
+                
+                // Ensure we're in a clean state
+                self.displayLink?.invalidate()
+                self.displayLink = nil
+                
+                // Ensure we're at the start
+                let currentTime = CMTime.zero
+                self.rgbPlayer?.seek(to: currentTime, toleranceBefore: .zero, toleranceAfter: .zero)
+                self.alphaPlayer?.seek(to: currentTime, toleranceBefore: .zero, toleranceAfter: .zero)
+                
+                // Configure for smoother playback
+                self.rgbPlayer?.automaticallyWaitsToMinimizeStalling = false
+                self.alphaPlayer?.automaticallyWaitsToMinimizeStalling = false
+                
+                // Start display link for frame sync
+                self.setupDisplayLink()
+                
+                // Set playback rate before playing
+                self.rgbPlayer?.rate = 1.0
+                self.alphaPlayer?.rate = 1.0
+                
+                // Start both videos in sync
+                self.rgbPlayer?.play()
+                self.alphaPlayer?.play()
+                
+                // Release the semaphore
+                self.renderingSemaphore.signal()
+                
+                ARLog.debug("▶️ Playing synchronized RGB and Alpha videos from start")
+            }
+        }
     }
     
     func pause() {
-        // Stop display link
+        guard isPlaying else { return }
+        ARLog.debug("⏸️ Pause requested")
+        
+        isPlaying = false
+        lastPauseTime = rgbPlayer?.currentTime()
+        
+        // Stop display link first
         displayLink?.invalidate()
         displayLink = nil
         
-        // Pause videos
-        rgbPlayer?.pause()
-        alphaPlayer?.pause()
-        ARLog.debug("⏸️ Paused RGB and Alpha videos")
+        // Ensure clean pause with synchronized state
+        frameQueue.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Wait for any in-flight frame processing
+            _ = renderingSemaphore.wait(timeout: .now() + 0.1)
+            
+            DispatchQueue.main.async {
+                // Ensure clean pause
+                self.rgbPlayer?.rate = 0.0
+                self.alphaPlayer?.rate = 0.0
+                
+                // Pause videos
+                self.rgbPlayer?.pause()
+                self.alphaPlayer?.pause()
+                
+                // Release the semaphore
+                self.renderingSemaphore.signal()
+                
+                ARLog.debug("⏸️ Paused RGB and Alpha videos")
+            }
+        }
+    }
+    
+    func resume() {
+        guard !isPlaying else { return }
+        ARLog.debug("▶️ Resume requested")
+        
+        // Reset frame processing state
+        isProcessingFrame = false
+        frameDropCount = 0
+        lastFrameTime = 0
+        
+        // If we were at the end, restart from beginning
+        if let lastTime = lastPauseTime,
+           let duration = rgbPlayer?.currentItem?.duration,
+           lastTime >= duration {
+            play()
+            return
+        }
+        
+        frameQueue.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Wait for any pending operations
+            _ = renderingSemaphore.wait(timeout: .now() + 0.1)
+            
+            DispatchQueue.main.async {
+                self.isPlaying = true
+                
+                // Ensure we're in a clean state
+                self.displayLink?.invalidate()
+                self.displayLink = nil
+                
+                // Configure for smoother playback
+                self.rgbPlayer?.automaticallyWaitsToMinimizeStalling = false
+                self.alphaPlayer?.automaticallyWaitsToMinimizeStalling = false
+                
+                // Ensure both players are at the same position
+                if let currentTime = self.lastPauseTime {
+                    self.rgbPlayer?.seek(to: currentTime, toleranceBefore: .zero, toleranceAfter: .zero)
+                    self.alphaPlayer?.seek(to: currentTime, toleranceBefore: .zero, toleranceAfter: .zero)
+                }
+                
+                // Start display link for frame sync
+                self.setupDisplayLink()
+                
+                // Set playback rate before playing
+                self.rgbPlayer?.rate = 1.0
+                self.alphaPlayer?.rate = 1.0
+                
+                // Resume both videos
+                self.rgbPlayer?.play()
+                self.alphaPlayer?.play()
+                
+                // Release the semaphore
+                self.renderingSemaphore.signal()
+                
+                ARLog.debug("▶️ Resumed synchronized RGB and Alpha videos")
+            }
+        }
     }
     
     func getMaterial() -> SCNMaterial {
@@ -391,18 +594,70 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
     private func setupDisplayLink() {
         // Clean up existing display link
         displayLink?.invalidate()
+        displayLink = nil
+        
+        // Only create display link if we're playing
+        guard isPlaying else { return }
         
         // Create a new display link
         displayLink = CADisplayLink(target: self, selector: #selector(displayLinkDidFire))
         displayLink?.preferredFramesPerSecond = 30 // Match video frame rate
         displayLink?.add(to: .main, forMode: .common)
+        ARLog.debug("Display link setup with 30fps")
     }
     
     @objc private func displayLinkDidFire() {
-        updateCombinedTexture()
+        // Skip if we're already processing a frame or not playing
+        guard isPlaying, !isProcessingFrame else {
+            frameDropCount += 1
+            if frameDropCount % 30 == 0 {
+                ARLog.warning("Dropped \(frameDropCount) frames due to backed up processing")
+            }
+            return
+        }
+        
+        // Check frame timing
+        let currentTime = CACurrentMediaTime()
+        if lastFrameTime > 0 {
+            let delta = currentTime - lastFrameTime
+            if delta < (1.0 / 35.0) { // Allow slight variance above 30fps
+                return // Skip this frame to maintain proper timing
+            }
+        }
+        lastFrameTime = currentTime
+        
+        // Process frame on dedicated queue
+        isProcessingFrame = true
+        frameQueue.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Try to acquire the rendering semaphore
+            guard renderingSemaphore.wait(timeout: .now() + 0.1) == .success else {
+                DispatchQueue.main.async {
+                    self.isProcessingFrame = false
+                }
+                return
+            }
+            
+            // Update textures
+            self.updateCombinedTexture()
+            
+            // Release the semaphore and reset processing flag
+            self.renderingSemaphore.signal()
+            DispatchQueue.main.async {
+                self.isProcessingFrame = false
+            }
+        }
     }
     
     private func updateCombinedTexture() {
+        // Skip if we're not playing
+        guard isPlaying else { return }
+        
+        // Get current video frame time
+        let currentTime = CACurrentMediaTime()
+        
+        // Check if we have valid video outputs and Metal components
         guard let rgbVideoOutput = rgbVideoOutput,
               let alphaVideoOutput = alphaVideoOutput,
               let device = device,
@@ -410,28 +665,35 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
               let pipelineState = pipelineState,
               let textureCache = textureCache,
               let outputTexture = outputTexture else {
+            ARLog.error("Missing required Metal components")
             return
         }
         
-        // Use RGB as master
-        let hostTime = CACurrentMediaTime()
-        let rgbTime = rgbVideoOutput.itemTime(forHostTime: hostTime)
+        // Get the next video frame with precise timing
+        let rgbTime = rgbVideoOutput.itemTime(forHostTime: currentTime)
+        let alphaTime = alphaVideoOutput.itemTime(forHostTime: currentTime)
         
-        // Try to get the alpha frame for the *same* time as RGB
-        guard rgbVideoOutput.hasNewPixelBuffer(forItemTime: rgbTime),
-              alphaVideoOutput.hasNewPixelBuffer(forItemTime: rgbTime),
-              let rgbPixelBuffer = rgbVideoOutput.copyPixelBuffer(forItemTime: rgbTime, itemTimeForDisplay: nil),
-              let alphaPixelBuffer = alphaVideoOutput.copyPixelBuffer(forItemTime: rgbTime, itemTimeForDisplay: nil) else {
-            // If either frame is missing, skip rendering
+        // Ensure we can get both pixel buffers
+        guard let rgbPixelBuffer = rgbVideoOutput.copyPixelBuffer(forItemTime: rgbTime, itemTimeForDisplay: nil),
+              let alphaPixelBuffer = alphaVideoOutput.copyPixelBuffer(forItemTime: alphaTime, itemTimeForDisplay: nil) else {
+            return
+        }
+        
+        // Get dimensions (assuming both are the same)
+        let rgbWidth = CVPixelBufferGetWidth(rgbPixelBuffer)
+        let rgbHeight = CVPixelBufferGetHeight(rgbPixelBuffer)
+        let alphaWidth = CVPixelBufferGetWidth(alphaPixelBuffer)
+        let alphaHeight = CVPixelBufferGetHeight(alphaPixelBuffer)
+        
+        // Verify dimensions match
+        guard rgbWidth == alphaWidth, rgbHeight == alphaHeight else {
+            ARLog.error("Mismatched video dimensions - RGB: \(rgbWidth)x\(rgbHeight), Alpha: \(alphaWidth)x\(alphaHeight)")
             return
         }
         
         // Create Metal textures from pixel buffers
         var rgbTextureRef: CVMetalTexture?
         var alphaTextureRef: CVMetalTexture?
-        
-        let width = CVPixelBufferGetWidth(rgbPixelBuffer)
-        let height = CVPixelBufferGetHeight(rgbPixelBuffer)
         
         // Create RGB texture
         let rgbStatus = CVMetalTextureCacheCreateTextureFromImage(
@@ -440,8 +702,8 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
             rgbPixelBuffer,
             nil,
             .bgra8Unorm_srgb,
-            width,
-            height,
+            rgbWidth,
+            rgbHeight,
             0,
             &rgbTextureRef
         )
@@ -453,8 +715,8 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
             alphaPixelBuffer,
             nil,
             .bgra8Unorm_srgb,
-            CVPixelBufferGetWidth(alphaPixelBuffer),
-            CVPixelBufferGetHeight(alphaPixelBuffer),
+            alphaWidth,
+            alphaHeight,
             0,
             &alphaTextureRef
         )
@@ -464,17 +726,20 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
               alphaStatus == kCVReturnSuccess,
               let rgbTextureRef = rgbTextureRef,
               let alphaTextureRef = alphaTextureRef else {
-            ARLog.error("Failed to create Metal textures from pixel buffers")
+            ARLog.error("Failed to create Metal textures")
             return
         }
         
         // Get Metal textures from CV textures
-        let rgbTexture = CVMetalTextureGetTexture(rgbTextureRef)
-        let alphaTexture = CVMetalTextureGetTexture(alphaTextureRef)
+        guard let rgbTexture = CVMetalTextureGetTexture(rgbTextureRef),
+              let alphaTexture = CVMetalTextureGetTexture(alphaTextureRef) else {
+            ARLog.error("Failed to get Metal textures from CV textures")
+            return
+        }
         
-        guard let rgbTexture = rgbTexture,
-              let alphaTexture = alphaTexture else {
-            ARLog.error("Failed to get Metal textures")
+        // Create command buffer
+        guard let commandBuffer = commandQueue.makeCommandBuffer() else {
+            ARLog.error("Failed to create command buffer")
             return
         }
         
@@ -485,27 +750,22 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         renderPassDescriptor.colorAttachments[0].storeAction = .store
         renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
         
-        // Create command buffer
-        guard let commandBuffer = commandQueue.makeCommandBuffer() else {
-            ARLog.error("Failed to create command buffer")
-            return
-        }
-        
         // Create render command encoder
         guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else {
             ARLog.error("Failed to create render encoder")
             return
         }
         
-        // Set the render pipeline state
-        renderEncoder.setRenderPipelineState(pipelineState)
-        
-        // Create a quad - FIXED: Corrected texture coordinates to flip vertically
+        // Create a quad with corrected texture coordinates
         let vertices: [Float] = [
-            -1.0, -1.0, 0.0, 1.0, 0.0, 1.0, // bottom left
-             1.0, -1.0, 0.0, 1.0, 1.0, 1.0, // bottom right
-            -1.0,  1.0, 0.0, 1.0, 0.0, 0.0, // top left
-             1.0,  1.0, 0.0, 1.0, 1.0, 0.0  // top right
+            -1.0, -1.0, 0.0, 1.0,  // Position for vertex 0
+            0.0, 1.0,               // Texture coordinates for vertex 0
+            1.0, -1.0, 0.0, 1.0,   // Position for vertex 1
+            1.0, 1.0,               // Texture coordinates for vertex 1
+            -1.0, 1.0, 0.0, 1.0,   // Position for vertex 2
+            0.0, 0.0,               // Texture coordinates for vertex 2
+            1.0, 1.0, 0.0, 1.0,    // Position for vertex 3
+            1.0, 0.0                // Texture coordinates for vertex 3
         ]
         
         // Create vertex buffer
@@ -519,28 +779,36 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
             return
         }
         
-        // Set vertex buffer
-        renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
-        
-        // Set fragment textures
-        renderEncoder.setFragmentTexture(rgbTexture, index: 0)
-        renderEncoder.setFragmentTexture(alphaTexture, index: 1)
-        
-        // Create a default sampler
+        // Create sampler state
         let samplerDescriptor = MTLSamplerDescriptor()
         samplerDescriptor.minFilter = .linear
         samplerDescriptor.magFilter = .linear
-        if let sampler = device.makeSamplerState(descriptor: samplerDescriptor) {
-            renderEncoder.setFragmentSamplerState(sampler, index: 0)
+        samplerDescriptor.sAddressMode = .clampToEdge
+        samplerDescriptor.tAddressMode = .clampToEdge
+        samplerDescriptor.mipFilter = .linear
+        
+        guard let samplerState = device.makeSamplerState(descriptor: samplerDescriptor) else {
+            ARLog.error("Failed to create sampler state")
+            renderEncoder.endEncoding()
+            return
         }
+        
+        // Set the render pipeline state
+        renderEncoder.setRenderPipelineState(pipelineState)
+        
+        // Set vertex buffer
+        renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
+        
+        // Set fragment textures and sampler
+        renderEncoder.setFragmentTexture(rgbTexture, index: 0)
+        renderEncoder.setFragmentTexture(alphaTexture, index: 1)
+        renderEncoder.setFragmentSamplerState(samplerState, index: 0)
         
         // Draw quad
         renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         
-        // End encoding
+        // End encoding and commit
         renderEncoder.endEncoding()
-        
-        // Commit command buffer
         commandBuffer.commit()
     }
     
@@ -595,20 +863,6 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         }
     }
     
-    @objc private func playerItemDidReachEnd(notification: Notification) {
-        // Loop both videos when one reaches the end
-        let currentTime = CMTime.zero
-        rgbPlayer?.seek(to: currentTime, toleranceBefore: .zero, toleranceAfter: .zero)
-        alphaPlayer?.seek(to: currentTime, toleranceBefore: .zero, toleranceAfter: .zero)
-        
-        // Restart playback if both are still ready and continue looping
-        if isRGBReady && isAlphaReady {
-        rgbPlayer?.play()
-        alphaPlayer?.play()
-            ARLog.debug("🔄 Video reached end, looping back to start automatically")
-        }
-    }
-    
     // MARK: - Cleanup
     deinit {
         // Clean up display link
@@ -629,6 +883,17 @@ class TransparentVideoPlayer: NSObject, @unchecked Sendable {
         alphaPlayer?.pause()
         rgbPlayer = nil
         alphaPlayer = nil
+        
+        // Clean up Metal resources
+        outputTexture = nil
+        pipelineState = nil
+        commandQueue = nil
+        
+        // Clean up texture cache
+        if let textureCache = textureCache {
+            CVMetalTextureCacheFlush(textureCache, 0)
+            self.textureCache = nil
+        }
         
         ARLog.debug("🧹 Cleaned up all resources")
     }

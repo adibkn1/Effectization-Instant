@@ -938,88 +938,101 @@ class ARViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     }
 
     private func handleTrackingLost() {
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
-                    
-                    ARLog.debug("Image tracking lost. Showing overlay and pausing video.")
-                            
-                            // Track tracking lost event
-                            AnalyticsManager.shared.pauseTrackingSession()
-                            AnalyticsManager.shared.pauseVideoPlayback()
-                    
-                    // Only perform actions if state has actually changed
-                    if self.isImageTracked {
-                        self.isImageTracked = false
-                        self.showOverlay()
-                        
-                            // Pause video playback
-                            if isUsingTransparentVideo {
-                                self.transparentVideoPlayer?.pause()
-                                ARLog.debug("Transparent video paused")
-                            } else if let player = self.videoPlayer {
-                            player.pause()
-                            ARLog.debug("Video paused")
-                        }
-                        
-                            // Do NOT hide the CTA button once it has been shown
-                            // The button should remain visible even when tracking is lost
-                    }
-                    }
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            ARLog.debug("Image tracking lost. Showing overlay and pausing video.")
+            
+            // Track tracking lost event
+            AnalyticsManager.shared.pauseTrackingSession()
+            AnalyticsManager.shared.pauseVideoPlayback()
+            
+            // Only perform actions if state has actually changed
+            if self.isImageTracked {
+                self.isImageTracked = false
+                
+                // Ensure UI updates happen first
+                self.showOverlay()
+                
+                // Then handle video pause
+                if self.isUsingTransparentVideo {
+                    self.transparentVideoPlayer?.pause()
+                    ARLog.debug("Transparent video paused")
+                } else if let player = self.videoPlayer {
+                    // Ensure smooth pause
+                    player.rate = 0.0
+                    player.pause()
+                    ARLog.debug("Video paused")
+                }
+            }
+        }
     }
     
     private func handleTrackingGained(imageAnchor: ARImageAnchor) {
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
-                    
-                    ARLog.debug("Image detected/re-detected. Hiding overlay and playing video.")
-                            
-                            // Check if this is the first detection
-                            let isFirstDetection = !self.hasShownCTAButton && !self.isImageTracked
-                            
-                            // Track tracking gained event
-                            AnalyticsManager.shared.startTrackingSession()
-                            
-                            if isFirstDetection {
-                                // Track first image detection
-                                AnalyticsManager.shared.trackFirstImageDetection(folderID: self.initialFolderID)
-                            }
-                    
-                    // Only perform actions if state has actually changed
-                    if !self.isImageTracked {
-                        self.isImageTracked = true
-                            
-                            // Add a small delay before hiding overlay to smooth transition
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    // Ensure loading view is hidden
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            ARLog.debug("Image detected/re-detected. Hiding overlay and playing video.")
+            
+            // Check if this is the first detection
+            let isFirstDetection = !self.hasShownCTAButton && !self.isImageTracked
+            
+            // Track tracking gained event
+            AnalyticsManager.shared.startTrackingSession()
+            
+            if isFirstDetection {
+                // Track first image detection
+                AnalyticsManager.shared.trackFirstImageDetection(folderID: self.initialFolderID)
+            }
+            
+            // Only perform actions if state has actually changed
+            if !self.isImageTracked {
+                self.isImageTracked = true
+                
+                // Add a small delay before resuming playback to ensure smooth transition
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    // Ensure loading view is hidden first
                     self.hideLoadingAnimation()
+                    self.hideOverlay()
                     
-                                // Hide overlay
-                        self.hideOverlay()
-                        
-                                // Resume video playback
-                                if self.isUsingTransparentVideo {
-                                        AnalyticsManager.shared.startVideoPlayback()
-                                    self.transparentVideoPlayer?.play()
-                        ARLog.debug("Transparent video playback resumed")
-                                } else if let player = self.videoPlayer {
-                        // Only start from beginning if this is the first detection
-                        // Otherwise just resume from current position
-                        if isFirstDetection {
-                                player.seek(to: .zero)
-                            ARLog.debug("First detection - starting video from beginning")
-                        } else {
-                            // Just resume playback without seeking
-                            ARLog.debug("Image re-detected - resuming video from current position")
+                    // Resume video playback
+                    if self.isUsingTransparentVideo {
+                        AnalyticsManager.shared.startVideoPlayback()
+                        // Ensure video plane exists
+                        if self.videoPlaneNode == nil {
+                            ARLog.debug("Recreating video plane for transparent video")
+                            if let node = self.sceneView.node(for: imageAnchor) {
+                                self.createVideoPlane(for: node, with: imageAnchor)
                             }
-                                        AnalyticsManager.shared.startVideoPlayback()
-                            player.play()
-                        } else {
-                            ARLog.warning("Cannot play video - player not initialized")
                         }
                         
-                                // Show the CTA button with a delay if it hasn't been shown yet
-                                if !self.hasShownCTAButton {
-                        ARLog.debug("🔄 Showing CTA button after detection")
+                        // Only seek to start if this is first detection
+                        if isFirstDetection {
+                            self.transparentVideoPlayer?.play()
+                        } else {
+                            // Just resume from current position
+                            self.transparentVideoPlayer?.resume()
+                        }
+                        ARLog.debug(isFirstDetection ? "Starting transparent video from beginning" : "Resuming transparent video from current position")
+                    } else if let player = self.videoPlayer {
+                        // Only seek to start if this is first detection
+                        if isFirstDetection {
+                            player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
+                                player.rate = 1.0
+                                player.play()
+                            }
+                            ARLog.debug("First detection - starting video from beginning")
+                        } else {
+                            // Just resume from current position
+                            player.rate = 1.0
+                            player.play()
+                            ARLog.debug("Image re-detected - resuming video from current position")
+                        }
+                        AnalyticsManager.shared.startVideoPlayback()
+                    }
+                    
+                    // Show CTA button if needed
+                    if !self.hasShownCTAButton {
                         self.showButtonWithDelay()
                     }
                 }
